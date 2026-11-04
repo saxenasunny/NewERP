@@ -3,6 +3,8 @@ import { NextResponse } from "next/server";
 import { getAccountContext } from "@/lib/auth/account";
 import { importKindSchema, importTemplate } from "@/modules/imports/import-service";
 
+export const dynamic = "force-dynamic";
+
 /**
  * CSV template download. Requires an import permission; templates contain no
  * tenant data, but the route is not public so navigation never dangles.

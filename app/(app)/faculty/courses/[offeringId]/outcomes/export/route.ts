@@ -5,6 +5,8 @@ import { AppError } from "@/lib/errors";
 import { buildObeEvidenceCsv } from "@/modules/obe/evidence";
 import { getCourseObeEvidence } from "@/modules/obe/outcome-service";
 
+export const dynamic = "force-dynamic";
+
 /**
  * Downloadable OBE evidence document for one offering: the mappings, the policy
  * version they were measured against, and the statement that no attainment

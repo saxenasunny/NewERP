@@ -4,6 +4,8 @@ import { getAccountContext } from "@/lib/auth/account";
 import { AppError } from "@/lib/errors";
 import { getCourseGradebook, gradebookToCsv } from "@/modules/gradebook/gradebook-service";
 
+export const dynamic = "force-dynamic";
+
 /**
  * Downloadable gradebook for one offering. Permission checked by the service
  * (grades.read plus instructor/administrator access) and never cached: the file

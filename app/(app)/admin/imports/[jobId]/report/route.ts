@@ -4,6 +4,8 @@ import { getAccountContext } from "@/lib/auth/account";
 import { AppError } from "@/lib/errors";
 import { getImportJob, importReportCsv } from "@/modules/imports/import-service";
 
+export const dynamic = "force-dynamic";
+
 /**
  * Downloadable per-row report for one import run. Tenant-scoped, permission
  * checked, and never cached: it contains learner identifiers.

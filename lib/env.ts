@@ -48,7 +48,12 @@ export class EnvValidationError extends Error {
  * rules without mutating `process.env`.
  */
 export function parseServerEnv(source: Record<string, string | undefined>): ServerEnv {
-  const result = serverEnvSchema.safeParse(source);
+  const normalizedSource = { ...source };
+  if (!normalizedSource.APP_BASE_URL && normalizedSource.VERCEL_URL) {
+    normalizedSource.APP_BASE_URL = `https://${normalizedSource.VERCEL_URL}`;
+  }
+
+  const result = serverEnvSchema.safeParse(normalizedSource);
   if (!result.success) {
     const variables = [
       ...new Set(result.error.issues.map((issue) => String(issue.path[0] ?? "unknown"))),

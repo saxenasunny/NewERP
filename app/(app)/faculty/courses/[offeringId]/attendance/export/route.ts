@@ -7,6 +7,8 @@ import {
   getAttendanceReport,
 } from "@/modules/attendance/attendance-service";
 
+export const dynamic = "force-dynamic";
+
 /**
  * Downloadable attendance report for one offering. Permission checked by the
  * service (`attendance.read` and `reports.course.read` plus instructor or
