@@ -39,6 +39,7 @@ export function SignInForm() {
     });
 
     if (signInError) {
+      console.error("Sign-in error details:", signInError);
       // Deliberately generic: never reveal whether the address exists.
       setError(
         signInError.status === 429

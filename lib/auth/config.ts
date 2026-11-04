@@ -18,16 +18,32 @@ function createAuth() {
   const env = getServerEnv();
   const db = getDb();
 
+  const isProduction = process.env.NODE_ENV === "production" || !!process.env.VERCEL;
+  const baseURL =
+    process.env.VERCEL_PROJECT_PRODUCTION_URL
+      ? `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}`
+      : process.env.VERCEL_URL
+        ? `https://${process.env.VERCEL_URL}`
+        : env.APP_BASE_URL;
+
   return betterAuth({
     appName: "LMS Platform",
-    baseURL: env.APP_BASE_URL,
+    baseURL,
     secret: env.AUTH_SECRET,
     // Better Auth's Prisma adapter addresses the generated client by *model*
     // name (`prisma.user`, `prisma.session`, …); `@@map("users", …)` already
     // gives the physical tables their plural names. `usePlural` would instead
     // expect models literally named `Users`/`Sessions`, so it must stay off.
     database: prismaAdapter(db, { provider: "postgresql" }),
-    trustedOrigins: [env.APP_BASE_URL],
+    trustedOrigins: [
+      env.APP_BASE_URL,
+      "https://*.vercel.app",
+      "http://localhost:3000",
+      ...(process.env.VERCEL_URL ? [`https://${process.env.VERCEL_URL}`] : []),
+      ...(process.env.VERCEL_PROJECT_PRODUCTION_URL
+        ? [`https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}`]
+        : []),
+    ],
     emailAndPassword: {
       enabled: true,
       // Accounts are created only by accepting an invitation. Public sign-up
@@ -85,7 +101,7 @@ function createAuth() {
       defaultCookieAttributes: {
         httpOnly: true,
         sameSite: "lax",
-        secure: env.APP_BASE_URL.startsWith("https://"),
+        secure: baseURL.startsWith("https://") || isProduction,
       },
     },
     databaseHooks: {
