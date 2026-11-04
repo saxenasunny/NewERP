@@ -1,0 +1,8 @@
+node_modules
+.next
+coverage
+generated
+package-lock.json
+docs/LMS_BUILD_SPEC.md
+prisma/migrations
+.data

@@ -1,0 +1,2071 @@
+// LMS schema. Phases 2–3 cover tenancy, identity, authentication, RBAC, and
+// audit. Academic structure, course content, assessments, and OBE tables arrive
+// with their phases. Migrations are committed; never edit an applied migration.
+
+generator client {
+  provider = "prisma-client"
+  output   = "../generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ---------------------------------------------------------------------------
+// Tenancy
+// ---------------------------------------------------------------------------
+
+enum TenantStatus {
+  PENDING   @map("pending")
+  ACTIVE    @map("active")
+  SUSPENDED @map("suspended")
+  ARCHIVED  @map("archived")
+}
+
+model Tenant {
+  id        String       @id @default(cuid())
+  name      String
+  slug      String       @unique
+  status    TenantStatus @default(PENDING)
+  timezone  String       @default("UTC")
+  locale    String       @default("en")
+  logoUrl   String?      @map("logo_url")
+  createdAt DateTime     @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime     @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  institution            Institution?
+  memberships            TenantMembership[]
+  roles                  Role[]
+  assignments            UserRoleAssignment[]
+  invitations            Invitation[]
+  auditEvents            AuditEvent[]
+  academicYears          AcademicYear[]
+  terms                  Term[]
+  departments            Department[]
+  programmes             Programme[]
+  cohorts                Cohort[]
+  sections               Section[]
+  courses                Course[]
+  courseOfferings        CourseOffering[]
+  courseInstructors      CourseInstructor[]
+  enrolments             Enrolment[]
+  cohortMembers          CohortMember[]
+  importJobs             ImportJob[]
+  courseModules          CourseModule[]
+  contentItems           ContentItem[]
+  modulePrerequisites    ModulePrerequisite[]
+  contentProgress        ContentProgress[]
+  learningEvents         LearningEvent[]
+  courseAssignments      Assignment[]
+  submissions            AssignmentSubmission[]
+  rubricCriteria         RubricCriterion[]        @relation("rubric_tenant")
+  rubricScores           RubricCriterionScore[]   @relation("rubric_score_tenant")
+  grades                 Grade[]
+  gradeFeedback          GradeFeedback[]          @relation("grade_feedback_tenant")
+  gradeChangeEvents      GradeChangeEvent[]       @relation("grade_change_tenant")
+  questionBanks          QuestionBank[]
+  questions              Question[]
+  questionVersions       QuestionVersion[]
+  quizzes                Quiz[]
+  quizQuestionRefs       QuizQuestionRef[]
+  quizAttempts           QuizAttempt[]
+  quizAttemptItems       QuizAttemptItem[]
+  quizAnswers            QuizAnswer[]
+  quizEvents             QuizEvent[]
+  gradingSchemes         GradingScheme[]
+  assessmentWeights      AssessmentWeight[]
+  assessmentExcusals     AssessmentExcusal[]
+  liveSessions           LiveSession[]
+  attendanceRecords      AttendanceRecord[]
+  notifications          Notification[]
+  notificationPrefs      NotificationPreference[]
+  notificationDeliveries NotificationDelivery[]
+  announcements               Announcement[]
+  discussionThreads           DiscussionThread[]
+  discussionPosts             DiscussionPost[]
+  directMessages              DirectMessage[]
+  programmeOutcomes           ProgrammeOutcome[]
+  courseOutcomes              CourseOutcome[]
+  outcomeMappings             OutcomeMapping[]
+  assessmentOutcomeMappings   AssessmentOutcomeMapping[]
+  attainmentPolicies          AttainmentPolicy[]
+  certificates                Certificate[]
+
+  @@index([status])
+  @@map("tenants")
+}
+
+model Institution {
+  id       String @id @default(cuid())
+  tenantId String @unique @map("tenant_id")
+  name     String
+  code     String
+  /// Institution-level configuration (grading scales, attendance policy, …).
+  /// Shape is validated by services, not by ad-hoc UI reads.
+  settings Json   @default("{}")
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@map("institutions")
+}
+
+// ---------------------------------------------------------------------------
+// Identity
+// ---------------------------------------------------------------------------
+
+enum UserStatus {
+  ACTIVE      @map("active")
+  INVITED     @map("invited")
+  DEACTIVATED @map("deactivated")
+  LOCKED      @map("locked")
+}
+
+model User {
+  id            String     @id @default(cuid())
+  /// Stored lower-cased and trimmed; uniqueness is enforced by the database.
+  email         String     @unique
+  name          String
+  status        UserStatus @default(ACTIVE)
+  timezone      String     @default("UTC")
+  locale        String     @default("en")
+  emailVerified Boolean    @default(false) @map("email_verified")
+  /// Profile photo reference. Uploads are not implemented yet, so this stays null.
+  image         String?
+  createdAt     DateTime   @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt     DateTime   @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  memberships            TenantMembership[]
+  roleAssignments        UserRoleAssignment[]     @relation("assigned_user")
+  grantedAssignments     UserRoleAssignment[]     @relation("granted_by")
+  auditEvents            AuditEvent[]
+  sessions               Session[]
+  accounts               Account[]
+  invitations            Invitation[]             @relation("invited_by")
+  instructedOfferings    CourseInstructor[]
+  enrolments             Enrolment[]
+  certificates           Certificate[]
+  cohortMembers          CohortMember[]
+  importJobs             ImportJob[]              @relation("import_job_created_by")
+  contentProgress        ContentProgress[]
+  learningEvents         LearningEvent[]
+  submissions            AssignmentSubmission[]
+  gradesReceived         Grade[]                  @relation("grade_learner")
+  gradesGiven            Grade[]                  @relation("grade_graded_by")
+  ownedQuestionBanks     QuestionBank[]           @relation("question_bank_owner")
+  quizAttempts           QuizAttempt[]
+  quizEvents             QuizEvent[]              @relation("quiz_event_actor")
+  assessmentExcusals     AssessmentExcusal[]      @relation("assessment_excusal_user")
+  excusalsCreated        AssessmentExcusal[]      @relation("assessment_excusal_created_by")
+  sessionsScheduled      LiveSession[]            @relation("live_session_created_by")
+  attendanceRecords      AttendanceRecord[]       @relation("attendance_user")
+  attendanceMarked       AttendanceRecord[]       @relation("attendance_marked_by")
+  attendanceReopened     LiveSession[]            @relation("live_session_reopened_by")
+  notifications          Notification[]           @relation("notification_recipient")
+  notificationPrefs      NotificationPreference[] @relation("notification_preference")
+  notificationDeliveries NotificationDelivery[]   @relation("notification_delivery")
+  announcements          Announcement[]           @relation("announcement_author")
+  discussionThreads      DiscussionThread[]       @relation("discussion_thread_author")
+  discussionPosts        DiscussionPost[]         @relation("discussion_post_author")
+  discussionPostsHidden  DiscussionPost[]         @relation("discussion_post_hidden_by")
+  directMessagesSent     DirectMessage[]          @relation("direct_message_sender")
+  directMessagesGot      DirectMessage[]          @relation("direct_message_recipient")
+
+  @@index([status])
+  @@map("users")
+}
+
+// ---------------------------------------------------------------------------
+// Authentication (Better Auth-owned tables)
+// ---------------------------------------------------------------------------
+//
+// The column set is dictated by Better Auth 1.7 and validated against the
+// generated Prisma client at startup. Physical names are snake_case like the
+// rest of the schema; Prisma model fields keep the names Better Auth expects.
+
+model Session {
+  id        String   @id @default(cuid())
+  token     String   @unique
+  userId    String   @map("user_id")
+  expiresAt DateTime @map("expires_at") @db.Timestamptz(3)
+  ipAddress String?  @map("ip_address")
+  userAgent String?  @map("user_agent")
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("sessions")
+}
+
+model Account {
+  id                    String    @id @default(cuid())
+  /// Provider-specific user identifier; for email/password this is the user id.
+  accountId             String    @map("account_id")
+  providerId            String    @map("provider_id")
+  userId                String    @map("user_id")
+  accessToken           String?   @map("access_token")
+  refreshToken          String?   @map("refresh_token")
+  idToken               String?   @map("id_token")
+  accessTokenExpiresAt  DateTime? @map("access_token_expires_at") @db.Timestamptz(3)
+  refreshTokenExpiresAt DateTime? @map("refresh_token_expires_at") @db.Timestamptz(3)
+  scope                 String?
+  /// Password hash only for the credential provider. Never returned by our APIs.
+  password              String?
+  createdAt             DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt             DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("accounts")
+}
+
+model Verification {
+  id         String   @id @default(cuid())
+  identifier String
+  value      String
+  expiresAt  DateTime @map("expires_at") @db.Timestamptz(3)
+  createdAt  DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt  DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  @@index([identifier])
+  @@map("verifications")
+}
+
+enum MembershipStatus {
+  INVITED   @map("invited")
+  ACTIVE    @map("active")
+  SUSPENDED @map("suspended")
+}
+
+model TenantMembership {
+  id       String           @id @default(cuid())
+  tenantId String           @map("tenant_id")
+  userId   String           @map("user_id")
+  status   MembershipStatus @default(INVITED)
+
+  /// Student/staff number issued by the institution. Free-form alphanumeric,
+  /// stored as text, unique inside the tenant only.
+  institutionalId String? @map("institutional_id")
+
+  joinedAt  DateTime? @map("joined_at") @db.Timestamptz(3)
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([tenantId, userId])
+  @@unique([tenantId, institutionalId])
+  @@index([userId, status])
+  @@map("tenant_memberships")
+}
+
+// ---------------------------------------------------------------------------
+// Role-based access control
+// ---------------------------------------------------------------------------
+
+enum RoleScope {
+  PLATFORM @map("platform")
+  TENANT   @map("tenant")
+}
+
+model Role {
+  id       String    @id @default(cuid())
+  /// Null for platform roles; required for tenant roles.
+  tenantId String?   @map("tenant_id")
+  /// Stable machine key (for example "institution_admin").
+  key      String
+  name     String
+  scope    RoleScope
+  isSystem Boolean   @default(false) @map("is_system")
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  tenant      Tenant?              @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  permissions RolePermission[]
+  assignments UserRoleAssignment[]
+  invitations Invitation[]
+
+  @@unique([tenantId, key])
+  @@index([tenantId])
+  @@map("roles")
+}
+
+model Permission {
+  key         String           @id
+  description String
+  roles       RolePermission[]
+
+  @@map("permissions")
+}
+
+model RolePermission {
+  roleId        String @map("role_id")
+  permissionKey String @map("permission_key")
+
+  role       Role       @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  permission Permission @relation(fields: [permissionKey], references: [key], onDelete: Cascade)
+
+  @@id([roleId, permissionKey])
+  @@index([permissionKey])
+  @@map("role_permissions")
+}
+
+enum AssignmentScope {
+  PLATFORM        @map("platform")
+  TENANT          @map("tenant")
+  DEPARTMENT      @map("department")
+  PROGRAMME       @map("programme")
+  COURSE_OFFERING @map("course_offering")
+}
+
+model UserRoleAssignment {
+  id String @id @default(cuid())
+
+  /// Null only for platform-scope role assignments.
+  tenantId String? @map("tenant_id")
+  userId   String  @map("user_id")
+  roleId   String  @map("role_id")
+
+  scopeType AssignmentScope @default(TENANT) @map("scope_type")
+  /// Identifier of the scoped entity; null for tenant-wide assignments.
+  scopeId   String?         @map("scope_id")
+
+  grantedByUserId String?  @map("granted_by_user_id")
+  createdAt       DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  tenant    Tenant? @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  user      User    @relation("assigned_user", fields: [userId], references: [id], onDelete: Cascade)
+  role      Role    @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  grantedBy User?   @relation("granted_by", fields: [grantedByUserId], references: [id], onDelete: SetNull)
+
+  @@index([tenantId, userId])
+  @@index([roleId])
+  @@map("user_role_assignments")
+}
+
+// ---------------------------------------------------------------------------
+// Audit
+// ---------------------------------------------------------------------------
+
+// ---------------------------------------------------------------------------
+// Invitations and transactional email
+// ---------------------------------------------------------------------------
+
+model Invitation {
+  id       String @id @default(cuid())
+  tenantId String @map("tenant_id")
+  /// Lower-cased address the invitation was issued to.
+  email    String
+  roleId   String @map("role_id")
+
+  /// SHA-256 of the single-use token. The token itself is only ever in the
+  /// invitation link and is never stored or logged.
+  tokenHash String @unique @map("token_hash")
+
+  invitedByUserId String?   @map("invited_by_user_id")
+  expiresAt       DateTime  @map("expires_at") @db.Timestamptz(3)
+  acceptedAt      DateTime? @map("accepted_at") @db.Timestamptz(3)
+  revokedAt       DateTime? @map("revoked_at") @db.Timestamptz(3)
+  createdAt       DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  tenant    Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  role      Role   @relation(fields: [roleId], references: [id], onDelete: Restrict)
+  invitedBy User?  @relation("invited_by", fields: [invitedByUserId], references: [id], onDelete: SetNull)
+
+  @@index([tenantId, email])
+  @@index([expiresAt])
+  @@map("invitations")
+}
+
+/// Development mail sink and production outbox. Rows contain the message body,
+/// so they are server-only and never exposed to unauthenticated production
+/// routes. The development viewer is disabled outside development.
+model EmailMessage {
+  id        String    @id @default(cuid())
+  transport String
+  to        String
+  subject   String
+  body      String
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  sentAt    DateTime? @map("sent_at") @db.Timestamptz(3)
+  error     String?
+
+  @@index([createdAt])
+  @@map("email_messages")
+}
+
+/// Fixed-window counters for sensitive application endpoints. Better Auth owns
+/// the limiting of its own HTTP endpoints; this covers our server actions.
+model RateLimitBucket {
+  key       String   @id
+  count     Int      @default(0)
+  resetAt   DateTime @map("reset_at") @db.Timestamptz(3)
+  updatedAt DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  @@map("rate_limit_buckets")
+}
+
+// ---------------------------------------------------------------------------
+// Audit
+// ---------------------------------------------------------------------------
+
+model AuditEvent {
+  id String @id @default(cuid())
+
+  tenantId    String? @map("tenant_id")
+  actorUserId String? @map("actor_user_id")
+
+  action       String
+  resourceType String  @map("resource_type")
+  resourceId   String? @map("resource_id")
+
+  before Json?
+  after  Json?
+  reason String?
+
+  requestId String?  @map("request_id")
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  tenant Tenant? @relation(fields: [tenantId], references: [id], onDelete: Restrict)
+  actor  User?   @relation(fields: [actorUserId], references: [id], onDelete: SetNull)
+
+  @@index([tenantId, createdAt])
+  @@index([actorUserId])
+  @@index([requestId])
+  @@map("audit_events")
+}
+
+// ---------------------------------------------------------------------------
+// Academic structure and course catalogue (Phase 4)
+// ---------------------------------------------------------------------------
+
+enum AcademicYearStatus {
+  PLANNED  @map("planned")
+  ACTIVE   @map("active")
+  ARCHIVED @map("archived")
+}
+
+enum ProgrammeStatus {
+  ACTIVE   @map("active")
+  ARCHIVED @map("archived")
+}
+
+enum ProgrammeLevel {
+  CERTIFICATE @map("certificate")
+  DIPLOMA     @map("diploma")
+  BACHELOR    @map("bachelor")
+  MASTER      @map("master")
+  DOCTORATE   @map("doctorate")
+  OTHER       @map("other")
+}
+
+enum CourseStatus {
+  DRAFT    @map("draft")
+  ACTIVE   @map("active")
+  ARCHIVED @map("archived")
+}
+
+enum OfferingStatus {
+  DRAFT     @map("draft")
+  PUBLISHED @map("published")
+  CLOSED    @map("closed")
+}
+
+enum InstructorRole {
+  PRIMARY            @map("primary")
+  CO_INSTRUCTOR      @map("co_instructor")
+  TEACHING_ASSISTANT @map("teaching_assistant")
+}
+
+enum EnrolmentStatus {
+  ACTIVE    @map("active")
+  WITHDRAWN @map("withdrawn")
+  COMPLETED @map("completed")
+}
+
+enum EnrolmentSource {
+  MANUAL @map("manual")
+  IMPORT @map("import")
+}
+
+model AcademicYear {
+  id       String             @id @default(cuid())
+  tenantId String             @map("tenant_id")
+  name     String
+  startsOn DateTime           @map("starts_on") @db.Date
+  endsOn   DateTime           @map("ends_on") @db.Date
+  status   AcademicYearStatus @default(PLANNED)
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  tenant  Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  terms   Term[]
+  cohorts Cohort[]
+
+  @@unique([tenantId, name])
+  @@index([tenantId, status])
+  @@map("academic_years")
+}
+
+model Term {
+  id             String   @id @default(cuid())
+  tenantId       String   @map("tenant_id")
+  academicYearId String   @map("academic_year_id")
+  name           String
+  startsOn       DateTime @map("starts_on") @db.Date
+  endsOn         DateTime @map("ends_on") @db.Date
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  tenant       Tenant           @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  academicYear AcademicYear     @relation(fields: [academicYearId], references: [id], onDelete: Restrict)
+  offerings    CourseOffering[]
+
+  @@unique([academicYearId, name])
+  @@index([tenantId])
+  @@map("terms")
+}
+
+model Department {
+  id                 String  @id @default(cuid())
+  tenantId           String  @map("tenant_id")
+  name               String
+  code               String
+  parentDepartmentId String? @map("parent_department_id")
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  tenant           Tenant       @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  parentDepartment Department?  @relation("department_hierarchy", fields: [parentDepartmentId], references: [id], onDelete: SetNull)
+  childDepartments Department[] @relation("department_hierarchy")
+  programmes       Programme[]
+
+  @@unique([tenantId, code])
+  @@index([tenantId, parentDepartmentId])
+  @@map("departments")
+}
+
+model Programme {
+  id           String          @id @default(cuid())
+  tenantId     String          @map("tenant_id")
+  departmentId String          @map("department_id")
+  name         String
+  code         String
+  level        ProgrammeLevel
+  status       ProgrammeStatus @default(ACTIVE)
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  tenant     Tenant             @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  department Department         @relation(fields: [departmentId], references: [id], onDelete: Restrict)
+  cohorts    Cohort[]
+  outcomes   ProgrammeOutcome[]
+
+  @@unique([tenantId, code])
+  @@index([tenantId, departmentId])
+  @@map("programmes")
+}
+
+model Cohort {
+  id             String @id @default(cuid())
+  tenantId       String @map("tenant_id")
+  programmeId    String @map("programme_id")
+  academicYearId String @map("academic_year_id")
+  name           String
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  tenant       Tenant         @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  programme    Programme      @relation(fields: [programmeId], references: [id], onDelete: Restrict)
+  academicYear AcademicYear   @relation(fields: [academicYearId], references: [id], onDelete: Restrict)
+  sections     Section[]
+  members      CohortMember[]
+
+  @@unique([programmeId, academicYearId, name])
+  @@index([tenantId])
+  @@map("cohorts")
+}
+
+model Section {
+  id       String @id @default(cuid())
+  tenantId String @map("tenant_id")
+  cohortId String @map("cohort_id")
+  name     String
+  capacity Int?
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  tenant    Tenant           @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  cohort    Cohort           @relation(fields: [cohortId], references: [id], onDelete: Restrict)
+  offerings CourseOffering[]
+
+  @@unique([cohortId, name])
+  @@index([tenantId])
+  @@map("sections")
+}
+
+model CohortMember {
+  id       String @id @default(cuid())
+  tenantId String @map("tenant_id")
+  cohortId String @map("cohort_id")
+  userId   String @map("user_id")
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  cohort Cohort @relation(fields: [cohortId], references: [id], onDelete: Cascade)
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([cohortId, userId])
+  @@index([tenantId, userId])
+  @@map("cohort_members")
+}
+
+/// The institution's course catalogue entry. It is not scheduled in a term and
+/// carries no instructors or learners; those belong to CourseOffering.
+model Course {
+  id          String       @id @default(cuid())
+  tenantId    String       @map("tenant_id")
+  code        String
+  title       String
+  description String?
+  credits     Decimal      @db.Decimal(4, 1)
+  status      CourseStatus @default(DRAFT)
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  tenant    Tenant           @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  offerings CourseOffering[]
+
+  @@unique([tenantId, code])
+  @@index([tenantId, status])
+  @@map("courses")
+}
+
+/// A catalogue course scheduled in a term (and optionally a section). Learners
+/// are enrolled here, never into the catalogue entry.
+model CourseOffering {
+  id        String         @id @default(cuid())
+  tenantId  String         @map("tenant_id")
+  courseId  String         @map("course_id")
+  termId    String         @map("term_id")
+  sectionId String?        @map("section_id")
+  startsOn  DateTime?      @map("starts_on") @db.Date
+  endsOn    DateTime?      @map("ends_on") @db.Date
+  status    OfferingStatus @default(DRAFT)
+  settings  Json           @default("{}")
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  tenant            Tenant              @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  course            Course              @relation(fields: [courseId], references: [id], onDelete: Restrict)
+  term              Term                @relation(fields: [termId], references: [id], onDelete: Restrict)
+  section           Section?            @relation(fields: [sectionId], references: [id], onDelete: Restrict)
+  instructors       CourseInstructor[]
+  enrolments        Enrolment[]
+  modules           CourseModule[]
+  learningEvents    LearningEvent[]
+  assignments       Assignment[]
+  rubricCriteria    RubricCriterion[]   @relation("rubric_offering")
+  questionBanks     QuestionBank[]
+  quizzes           Quiz[]
+  gradingScheme     GradingScheme?
+  excusals          AssessmentExcusal[]
+  liveSessions      LiveSession[]
+  announcements     Announcement[]
+  discussionThreads DiscussionThread[]
+  directMessages    DirectMessage[]
+  courseOutcomes    CourseOutcome[]
+  certificates      Certificate[]
+
+  @@unique([courseId, termId, sectionId])
+  @@index([tenantId, termId])
+  @@index([tenantId, courseId])
+  @@map("course_offerings")
+}
+
+model CourseInstructor {
+  id               String         @id @default(cuid())
+  tenantId         String         @map("tenant_id")
+  courseOfferingId String         @map("course_offering_id")
+  userId           String         @map("user_id")
+  assignmentRole   InstructorRole @default(PRIMARY)
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  tenant   Tenant         @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  offering CourseOffering @relation(fields: [courseOfferingId], references: [id], onDelete: Cascade)
+  user     User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([courseOfferingId, userId])
+  @@index([tenantId, userId])
+  @@map("course_instructors")
+}
+
+model Enrolment {
+  id               String          @id @default(cuid())
+  tenantId         String          @map("tenant_id")
+  courseOfferingId String          @map("course_offering_id")
+  userId           String          @map("user_id")
+  status           EnrolmentStatus @default(ACTIVE)
+  enrolledAt       DateTime        @default(now()) @map("enrolled_at") @db.Timestamptz(3)
+  source           EnrolmentSource @default(MANUAL)
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  tenant   Tenant         @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  offering CourseOffering @relation(fields: [courseOfferingId], references: [id], onDelete: Restrict)
+  user     User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([courseOfferingId, userId])
+  @@index([tenantId, userId])
+  @@map("enrolments")
+}
+
+// ---------------------------------------------------------------------------
+// Course content and delivery (Phase 5)
+// ---------------------------------------------------------------------------
+
+enum ContentStatus {
+  DRAFT     @map("draft")
+  PUBLISHED @map("published")
+}
+
+enum ContentKind {
+  RICH_TEXT  @map("rich_text")
+  FILE       @map("file")
+  LINK       @map("link")
+  VIDEO_LINK @map("video_link")
+}
+
+enum ProgressStatus {
+  NOT_STARTED @map("not_started")
+  IN_PROGRESS @map("in_progress")
+  COMPLETED   @map("completed")
+}
+
+/// An ordered section of a course offering's content. Modules belong to one
+/// delivery (offering), so the same catalogue course can run differently in two
+/// terms.
+model CourseModule {
+  id               String        @id @default(cuid())
+  tenantId         String        @map("tenant_id")
+  courseOfferingId String        @map("course_offering_id")
+  title            String
+  description      String?
+  position         Int           @default(1)
+  status           ContentStatus @default(DRAFT)
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  tenant        Tenant               @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  offering      CourseOffering       @relation(fields: [courseOfferingId], references: [id], onDelete: Cascade)
+  items         ContentItem[]
+  prerequisites ModulePrerequisite[] @relation("prerequisite_target")
+  requiredBy    ModulePrerequisite[] @relation("prerequisite_source")
+
+  @@index([tenantId, courseOfferingId, position])
+  @@map("course_modules")
+}
+
+/// "`moduleId` is locked until `prerequisiteModuleId` is complete." Both modules
+/// must belong to the same offering; the service enforces that.
+model ModulePrerequisite {
+  tenantId             String @map("tenant_id")
+  moduleId             String @map("module_id")
+  prerequisiteModuleId String @map("prerequisite_module_id")
+
+  tenant       Tenant       @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  module       CourseModule @relation("prerequisite_target", fields: [moduleId], references: [id], onDelete: Cascade)
+  prerequisite CourseModule @relation("prerequisite_source", fields: [prerequisiteModuleId], references: [id], onDelete: Cascade)
+
+  @@id([moduleId, prerequisiteModuleId])
+  @@index([tenantId])
+  @@index([prerequisiteModuleId])
+  @@map("module_prerequisites")
+}
+
+/// One piece of learning material inside a module: rich text, an uploaded file,
+/// an external link, or a video link. Files are stored privately; `storageKey`
+/// is never exposed to the browser.
+model ContentItem {
+  id             String        @id @default(cuid())
+  tenantId       String        @map("tenant_id")
+  moduleId       String        @map("module_id")
+  title          String
+  kind           ContentKind   @default(RICH_TEXT)
+  body           String?       @db.Text
+  url            String?
+  storageKey     String?       @map("storage_key")
+  fileName       String?       @map("file_name")
+  fileSize       Int?          @map("file_size")
+  contentType    String?       @map("content_type")
+  position       Int           @default(1)
+  status         ContentStatus @default(DRAFT)
+  availableFrom  DateTime?     @map("available_from") @db.Timestamptz(3)
+  availableUntil DateTime?     @map("available_until") @db.Timestamptz(3)
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  tenant         Tenant            @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  module         CourseModule      @relation(fields: [moduleId], references: [id], onDelete: Cascade)
+  progress       ContentProgress[]
+  learningEvents LearningEvent[]
+
+  @@index([tenantId, moduleId, position])
+  @@map("content_items")
+}
+
+model ContentProgress {
+  id            String         @id @default(cuid())
+  tenantId      String         @map("tenant_id")
+  contentItemId String         @map("content_item_id")
+  userId        String         @map("user_id")
+  status        ProgressStatus @default(NOT_STARTED)
+  firstViewedAt DateTime?      @map("first_viewed_at") @db.Timestamptz(3)
+  lastViewedAt  DateTime?      @map("last_viewed_at") @db.Timestamptz(3)
+  completedAt   DateTime?      @map("completed_at") @db.Timestamptz(3)
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  tenant Tenant      @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  item   ContentItem @relation(fields: [contentItemId], references: [id], onDelete: Cascade)
+  user   User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([contentItemId, userId])
+  @@index([tenantId, userId])
+  @@map("content_progress")
+}
+
+/// Meaningful learning activity, recorded next to progress for later analytics.
+/// Append-only: nothing in the product updates or deletes these rows.
+enum AssignmentStatus {
+  DRAFT     @map("draft")
+  PUBLISHED @map("published")
+  ARCHIVED  @map("archived")
+}
+
+enum SubmissionStatus {
+  DRAFT     @map("draft")
+  SUBMITTED @map("submitted")
+  LATE      @map("late")
+  GRADED    @map("graded")
+}
+
+enum GradeStatus {
+  UNGRADED @map("ungraded")
+  DRAFT    @map("draft")
+  RELEASED @map("released")
+}
+
+enum AssignmentSubmissionType {
+  TEXT          @map("text")
+  FILE          @map("file")
+  LINK          @map("link")
+  TEXT_AND_FILE @map("text_and_file")
+}
+
+/// An assessment attached to one course offering. Points, scheduling, and
+/// submission rules live here; the actual work lands in `assignment_submissions`.
+model Assignment {
+  id              String                   @id @default(cuid())
+  tenantId        String                   @map("tenant_id")
+  offeringId      String                   @map("course_offering_id")
+  title           String
+  instructions    String?                  @map("instructions")
+  dueAt           DateTime?                @map("due_at") @db.Timestamptz(3)
+  availableFrom   DateTime?                @map("available_from") @db.Timestamptz(3)
+  availableUntil  DateTime?                @map("available_until") @db.Timestamptz(3)
+  pointsPossible  Decimal                  @default(10) @map("points_possible") @db.Decimal(6, 2)
+  submissionTypes AssignmentSubmissionType @default(TEXT) @map("submission_types")
+  settings        Json                     @default("{}")
+  status          AssignmentStatus         @default(DRAFT)
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  tenant          Tenant                      @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  offering        CourseOffering              @relation(fields: [offeringId], references: [id], onDelete: Cascade)
+  submissions     AssignmentSubmission[]
+  grades          Grade[]
+  rubric          RubricCriterion[]           @relation("rubric_assignment")
+  outcomeMappings AssessmentOutcomeMapping[]
+
+  @@index([tenantId, offeringId])
+  @@index([tenantId, status])
+  @@map("assignments")
+}
+
+/// One learner's in-progress or submitted work for one assignment. There is one
+/// row per learner per assignment; resubmissions update the same row when allowed.
+model AssignmentSubmission {
+  id            String           @id @default(cuid())
+  tenantId      String           @map("tenant_id")
+  assignmentId  String           @map("assignment_id")
+  userId        String           @map("user_id")
+  attemptNumber Int              @default(1) @map("attempt_number")
+  status        SubmissionStatus @default(DRAFT)
+  submittedAt   DateTime?        @map("submitted_at") @db.Timestamptz(3)
+  lateFlag      Boolean          @default(false) @map("late_flag")
+  version       Int              @default(1) @map("version")
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  tenant       Tenant                  @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  assignment   Assignment              @relation(fields: [assignmentId], references: [id], onDelete: Cascade)
+  user         User                    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  textVersions SubmissionTextVersion[]
+  fileLinks    SubmissionFileLink[]
+  grades       Grade[]
+  rubricScores RubricCriterionScore[]  @relation("rubric_score_submission")
+
+  @@unique([assignmentId, userId])
+  @@index([tenantId, assignmentId])
+  @@index([tenantId, userId])
+  @@map("assignment_submissions")
+}
+
+/// Append-only text drafts for a submission. The current body is the most
+/// recent row, ordered by created_at. This keeps a submission history without
+/// mutating the previous attempts.
+model SubmissionTextVersion {
+  id           String   @id @default(cuid())
+  submissionId String   @map("submission_id")
+  body         String   @db.Text
+  createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  submission AssignmentSubmission @relation(fields: [submissionId], references: [id], onDelete: Cascade)
+
+  @@index([submissionId, createdAt])
+  @@map("submission_text_versions")
+}
+
+/// File attachments for a submission. Metadata is stored here so we can serve
+/// the object from private storage while keeping the relationship typed.
+model SubmissionFileLink {
+  id           String   @id @default(cuid())
+  submissionId String   @map("submission_id")
+  fileId       String?  @map("file_id")
+  fileName     String   @map("file_name")
+  fileSize     Int      @map("file_size")
+  contentType  String?  @map("content_type")
+  storageKey   String?  @map("storage_key")
+  createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  submission AssignmentSubmission @relation(fields: [submissionId], references: [id], onDelete: Cascade)
+
+  @@index([submissionId])
+  @@map("submission_file_links")
+}
+
+/// A rubric criterion attached to a course offering (and optionally to one
+/// assignment). Criteria define the rubric rows; actual scores are in
+/// `rubric_criterion_scores`.
+model RubricCriterion {
+  id               String  @id @default(cuid())
+  tenantId         String  @map("tenant_id")
+  courseOfferingId String  @map("course_offering_id")
+  assignmentId     String? @map("assignment_id")
+  title            String
+  description      String? @map("description")
+  pointsPossible   Decimal @default(1) @map("points_possible") @db.Decimal(6, 2)
+  position         Int     @default(1)
+  version          Int     @default(1) @map("version")
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  tenant     Tenant                 @relation("rubric_tenant", fields: [tenantId], references: [id], onDelete: Cascade)
+  offering   CourseOffering         @relation("rubric_offering", fields: [courseOfferingId], references: [id], onDelete: Restrict)
+  assignment Assignment?            @relation("rubric_assignment", fields: [assignmentId], references: [id], onDelete: SetNull)
+  scores     RubricCriterionScore[] @relation("rubric_score_criterion")
+
+  @@index([tenantId, courseOfferingId])
+  @@index([tenantId, assignmentId])
+  @@map("rubric_criteria")
+}
+
+/// A score for one rubric criterion, connected either to a submission (in-progress
+/// scoring) or to a grade (finalized scoring). Null on both is allowed while
+/// the row is being assembled.
+model RubricCriterionScore {
+  id                String   @id @default(cuid())
+  tenantId          String   @map("tenant_id")
+  rubricCriterionId String   @map("rubric_criterion_id")
+  submissionId      String?  @map("submission_id")
+  gradeId           String?  @map("grade_id")
+  score             Decimal? @map("score") @db.Decimal(6, 2)
+  feedback          String?  @map("feedback")
+  createdAt         DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  tenant     Tenant                @relation("rubric_score_tenant", fields: [tenantId], references: [id], onDelete: Cascade)
+  criterion  RubricCriterion       @relation("rubric_score_criterion", fields: [rubricCriterionId], references: [id], onDelete: Cascade)
+  submission AssignmentSubmission? @relation("rubric_score_submission", fields: [submissionId], references: [id], onDelete: Cascade)
+  grade      Grade?                @relation("rubric_score_grade", fields: [gradeId], references: [id], onDelete: Cascade)
+
+  @@index([rubricCriterionId])
+  @@index([gradeId])
+  @@map("rubric_criterion_scores")
+}
+
+/// The grade record for one learner on one assignment. One row per
+/// assignment + learner. Status controls visibility: unreleased grades are
+/// hidden from the learner.
+model Grade {
+  id             String      @id @default(cuid())
+  tenantId       String      @map("tenant_id")
+  assignmentId   String      @map("assignment_id")
+  submissionId   String      @map("submission_id")
+  learnerUserId  String      @map("learner_user_id")
+  rawScore       Decimal?    @map("raw_score") @db.Decimal(6, 2)
+  pointsPossible Decimal     @default(10) @map("points_possible") @db.Decimal(6, 2)
+  gradeStatus    GradeStatus @default(UNGRADED) @map("grade_status")
+  gradedByUserId String?     @map("graded_by_user_id")
+  gradedAt       DateTime?   @map("graded_at") @db.Timestamptz(3)
+  releasedAt     DateTime?   @map("released_at") @db.Timestamptz(3)
+  version        Int         @default(1) @map("version")
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  tenant       Tenant                 @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  assignment   Assignment             @relation(fields: [assignmentId], references: [id], onDelete: Cascade)
+  submission   AssignmentSubmission   @relation(fields: [submissionId], references: [id], onDelete: Cascade)
+  learner      User                   @relation("grade_learner", fields: [learnerUserId], references: [id], onDelete: Cascade)
+  gradedBy     User?                  @relation("grade_graded_by", fields: [gradedByUserId], references: [id], onDelete: SetNull)
+  feedback     GradeFeedback[]        @relation("grade_feedback_grade")
+  rubricScores RubricCriterionScore[] @relation("rubric_score_grade")
+  changeEvents GradeChangeEvent[]     @relation("grade_change_grade")
+
+  @@unique([assignmentId, learnerUserId])
+  @@index([tenantId, assignmentId])
+  @@index([tenantId, learnerUserId])
+  @@map("grades")
+}
+
+/// Free-text feedback attached to a grade. A grade can have at most one
+/// feedback row in this schema; the service creates or replaces it
+/// accordingly.
+model GradeFeedback {
+  id         String   @id @default(cuid())
+  tenantId   String   @map("tenant_id")
+  gradeId    String   @map("grade_id")
+  body       String?  @db.Text
+  storageKey String?  @map("storage_key")
+  fileName   String?  @map("file_name")
+  createdAt  DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  tenant Tenant @relation("grade_feedback_tenant", fields: [tenantId], references: [id], onDelete: Cascade)
+  grade  Grade  @relation("grade_feedback_grade", fields: [gradeId], references: [id], onDelete: Cascade)
+
+  @@index([gradeId])
+  @@map("grade_feedback")
+}
+
+/// An append-only record of a grade or release change. Used to answer “who
+/// changed what and why” without relying on updated_at alone.
+model GradeChangeEvent {
+  id          String       @id @default(cuid())
+  tenantId    String       @map("tenant_id")
+  gradeId     String       @map("grade_id")
+  actorUserId String?      @map("actor_user_id")
+  oldRawScore Decimal?     @map("old_raw_score") @db.Decimal(6, 2)
+  newRawScore Decimal?     @map("new_raw_score") @db.Decimal(6, 2)
+  oldStatus   GradeStatus? @map("old_status")
+  newStatus   GradeStatus? @map("new_status")
+  reason      String?      @map("reason")
+  requestId   String?      @map("request_id")
+  createdAt   DateTime     @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  tenant Tenant @relation("grade_change_tenant", fields: [tenantId], references: [id], onDelete: Cascade)
+  grade  Grade  @relation("grade_change_grade", fields: [gradeId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, gradeId])
+  @@map("grade_change_events")
+}
+
+model LearningEvent {
+  id               String  @id @default(cuid())
+  tenantId         String  @map("tenant_id")
+  userId           String  @map("user_id")
+  courseOfferingId String  @map("course_offering_id")
+  contentItemId    String? @map("content_item_id")
+  type             String
+  metadata         Json    @default("{}")
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  tenant   Tenant         @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  user     User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  offering CourseOffering @relation(fields: [courseOfferingId], references: [id], onDelete: Cascade)
+  item     ContentItem?   @relation(fields: [contentItemId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, courseOfferingId, createdAt])
+  @@index([tenantId, userId, createdAt])
+  @@map("learning_events")
+}
+
+// ---------------------------------------------------------------------------
+// CSV imports (Phase 4)
+// ---------------------------------------------------------------------------
+
+enum ImportKind {
+  USERS       @map("users")
+  ENROLMENTS  @map("enrolments")
+  INSTRUCTORS @map("instructors")
+}
+
+enum ImportStatus {
+  PREVIEW   @map("preview")
+  COMMITTED @map("committed")
+  FAILED    @map("failed")
+}
+
+enum ImportRowStatus {
+  VALID   @map("valid")
+  INVALID @map("invalid")
+  CREATED @map("created")
+  UPDATED @map("updated")
+  SKIPPED @map("skipped")
+  FAILED  @map("failed")
+}
+
+/// One uploaded file and its validation/commit result. Rows are kept so the
+/// report is reproducible and downloadable after the run.
+model ImportJob {
+  id              String       @id @default(cuid())
+  tenantId        String       @map("tenant_id")
+  kind            ImportKind
+  status          ImportStatus @default(PREVIEW)
+  fileName        String       @map("file_name")
+  createdByUserId String?      @map("created_by_user_id")
+  totalRows       Int          @default(0) @map("total_rows")
+  validRows       Int          @default(0) @map("valid_rows")
+  invalidRows     Int          @default(0) @map("invalid_rows")
+  /// Non-row failures (bad header, unreadable file). Rows stay empty in that case.
+  error           String?
+  summary         Json?
+  committedAt     DateTime?    @map("committed_at") @db.Timestamptz(3)
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  tenant    Tenant      @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  createdBy User?       @relation("import_job_created_by", fields: [createdByUserId], references: [id], onDelete: SetNull)
+  rows      ImportRow[]
+
+  @@index([tenantId, createdAt])
+  @@index([tenantId, kind, status])
+  @@map("import_jobs")
+}
+
+model ImportRow {
+  id          String          @id @default(cuid())
+  importJobId String          @map("import_job_id")
+  rowNumber   Int             @map("row_number")
+  status      ImportRowStatus
+  /// Email, institutional ID, or course code used to identify the row in the report.
+  identifier  String?
+  message     String?
+  /// Parsed source values, kept for the downloadable report. Tenant-scoped and
+  /// permission-gated; never rendered to unauthenticated users.
+  data        Json
+
+  job ImportJob @relation(fields: [importJobId], references: [id], onDelete: Cascade)
+
+  @@unique([importJobId, rowNumber])
+  @@index([importJobId, status])
+  @@map("import_rows")
+}
+
+// ---------------------------------------------------------------------------
+// Quizzes and question banks (Phase 7)
+// ---------------------------------------------------------------------------
+
+enum QuestionType {
+  SINGLE_CHOICE @map("single_choice")
+  MULTI_SELECT  @map("multi_select")
+  TRUE_FALSE    @map("true_false")
+  SHORT_ANSWER  @map("short_answer")
+  FILL_BLANK    @map("fill_blank")
+  ESSAY         @map("essay")
+}
+
+enum QuestionStatus {
+  DRAFT     @map("draft")
+  PUBLISHED @map("published")
+}
+
+enum QuizStatus {
+  DRAFT     @map("draft")
+  PUBLISHED @map("published")
+  ARCHIVED  @map("archived")
+}
+
+enum QuizAttemptStatus {
+  IN_PROGRESS @map("in_progress")
+  SUBMITTED   @map("submitted")
+  TIMED_OUT   @map("timed_out")
+  GRADED      @map("graded")
+}
+
+enum QuizEventType {
+  STARTED   @map("started")
+  AUTOSAVED @map("autosaved")
+  SUBMITTED @map("submitted")
+  TIMED_OUT @map("timed_out")
+  FINALISED @map("finalised")
+  GRADED    @map("graded")
+  RELEASED  @map("released")
+}
+
+/// A reusable set of questions, optionally scoped to one course offering.
+model QuestionBank {
+  id          String  @id @default(cuid())
+  tenantId    String  @map("tenant_id")
+  offeringId  String? @map("course_offering_id")
+  title       String
+  ownerUserId String? @map("owner_user_id")
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  tenant    Tenant          @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  offering  CourseOffering? @relation(fields: [offeringId], references: [id], onDelete: SetNull)
+  owner     User?           @relation("question_bank_owner", fields: [ownerUserId], references: [id], onDelete: SetNull)
+  questions Question[]
+
+  @@unique([tenantId, offeringId, title])
+  @@index([tenantId, offeringId])
+  @@map("question_banks")
+}
+
+/// Working copy of a question. Published snapshots live in `question_versions`.
+model Question {
+  id             String         @id @default(cuid())
+  tenantId       String         @map("tenant_id")
+  bankId         String         @map("question_bank_id")
+  type           QuestionType
+  title          String
+  promptJson     Json           @map("prompt_json")
+  answerKeyJson  Json           @map("answer_key_json")
+  points         Decimal        @default(1) @db.Decimal(6, 2)
+  status         QuestionStatus @default(DRAFT)
+  currentVersion Int            @default(0) @map("current_version")
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  tenant          Tenant                     @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  bank            QuestionBank               @relation(fields: [bankId], references: [id], onDelete: Cascade)
+  versions        QuestionVersion[]
+  quizRefs        QuizQuestionRef[]
+  outcomeMappings AssessmentOutcomeMapping[]
+
+  @@index([tenantId, bankId])
+  @@index([tenantId, status])
+  @@map("questions")
+}
+
+/// Immutable published snapshot. Attempts point here, never at the working copy.
+model QuestionVersion {
+  id            String       @id @default(cuid())
+  tenantId      String       @map("tenant_id")
+  questionId    String       @map("question_id")
+  version       Int
+  type          QuestionType
+  promptJson    Json         @map("prompt_json")
+  answerKeyJson Json         @map("answer_key_json")
+  points        Decimal      @db.Decimal(6, 2)
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  tenant       Tenant            @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  question     Question          @relation(fields: [questionId], references: [id], onDelete: Cascade)
+  attemptItems QuizAttemptItem[]
+
+  @@unique([questionId, version])
+  @@index([tenantId, questionId])
+  @@map("question_versions")
+}
+
+model Quiz {
+  id             String     @id @default(cuid())
+  tenantId       String     @map("tenant_id")
+  offeringId     String     @map("course_offering_id")
+  title          String
+  instructions   String?
+  availableFrom  DateTime?  @map("available_from") @db.Timestamptz(3)
+  availableUntil DateTime?  @map("available_until") @db.Timestamptz(3)
+  settings       Json       @default("{}")
+  status         QuizStatus @default(DRAFT)
+  version        Int        @default(1)
+  releasedAt     DateTime?  @map("released_at") @db.Timestamptz(3)
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  tenant    Tenant            @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  offering  CourseOffering    @relation(fields: [offeringId], references: [id], onDelete: Cascade)
+  questions QuizQuestionRef[]
+  attempts  QuizAttempt[]
+
+  @@index([tenantId, offeringId])
+  @@index([tenantId, status])
+  @@map("quizzes")
+}
+
+model QuizQuestionRef {
+  id             String   @id @default(cuid())
+  tenantId       String   @map("tenant_id")
+  quizId         String   @map("quiz_id")
+  questionId     String   @map("question_id")
+  position       Int
+  pointsOverride Decimal? @map("points_override") @db.Decimal(6, 2)
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  tenant   Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  quiz     Quiz     @relation(fields: [quizId], references: [id], onDelete: Cascade)
+  question Question @relation(fields: [questionId], references: [id], onDelete: Restrict)
+
+  @@unique([quizId, questionId])
+  @@unique([quizId, position])
+  @@index([tenantId, quizId])
+  @@map("quiz_question_refs")
+}
+
+model QuizAttempt {
+  id             String            @id @default(cuid())
+  tenantId       String            @map("tenant_id")
+  quizId         String            @map("quiz_id")
+  userId         String            @map("user_id")
+  attemptNumber  Int               @map("attempt_number")
+  status         QuizAttemptStatus @default(IN_PROGRESS)
+  startedAt      DateTime          @map("started_at") @db.Timestamptz(3)
+  deadlineAt     DateTime?         @map("deadline_at") @db.Timestamptz(3)
+  submittedAt    DateTime?         @map("submitted_at") @db.Timestamptz(3)
+  score          Decimal?          @db.Decimal(6, 2)
+  pointsPossible Decimal           @map("points_possible") @db.Decimal(6, 2)
+  version        Int               @default(1)
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  tenant Tenant            @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  quiz   Quiz              @relation(fields: [quizId], references: [id], onDelete: Cascade)
+  user   User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  items  QuizAttemptItem[]
+  events QuizEvent[]
+
+  @@unique([quizId, userId, attemptNumber])
+  @@index([tenantId, quizId])
+  @@index([tenantId, userId])
+  @@map("quiz_attempts")
+}
+
+model QuizAttemptItem {
+  id                String  @id @default(cuid())
+  tenantId          String  @map("tenant_id")
+  attemptId         String  @map("quiz_attempt_id")
+  questionVersionId String  @map("question_version_id")
+  position          Int
+  optionOrder       Json    @map("option_order")
+  pointsPossible    Decimal @map("points_possible") @db.Decimal(6, 2)
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  tenant          Tenant          @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  attempt         QuizAttempt     @relation(fields: [attemptId], references: [id], onDelete: Cascade)
+  questionVersion QuestionVersion @relation(fields: [questionVersionId], references: [id], onDelete: Restrict)
+  answer          QuizAnswer?
+
+  @@unique([attemptId, position])
+  @@unique([attemptId, questionVersionId])
+  @@index([tenantId, attemptId])
+  @@map("quiz_attempt_items")
+}
+
+model QuizAnswer {
+  id            String    @id @default(cuid())
+  tenantId      String    @map("tenant_id")
+  attemptItemId String    @unique @map("quiz_attempt_item_id")
+  answerJson    Json      @default("{}") @map("answer_json")
+  savedAt       DateTime? @map("saved_at") @db.Timestamptz(3)
+  score         Decimal?  @db.Decimal(6, 2)
+  feedback      String?
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  tenant Tenant          @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  item   QuizAttemptItem @relation(fields: [attemptItemId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId])
+  @@map("quiz_answers")
+}
+
+model QuizEvent {
+  id          String        @id @default(cuid())
+  tenantId    String        @map("tenant_id")
+  attemptId   String        @map("quiz_attempt_id")
+  actorUserId String?       @map("actor_user_id")
+  type        QuizEventType
+  metadata    Json          @default("{}")
+  occurredAt  DateTime      @default(now()) @map("occurred_at") @db.Timestamptz(3)
+
+  tenant  Tenant      @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  attempt QuizAttempt @relation(fields: [attemptId], references: [id], onDelete: Cascade)
+  actor   User?       @relation("quiz_event_actor", fields: [actorUserId], references: [id], onDelete: SetNull)
+
+  @@index([attemptId, occurredAt])
+  @@index([tenantId, type])
+  @@map("quiz_events")
+}
+
+// ---------------------------------------------------------------------------
+// Gradebook configuration (Phase 8)
+// ---------------------------------------------------------------------------
+
+enum GradingMode {
+  POINTS   @map("points")
+  WEIGHTED @map("weighted")
+}
+
+enum AssessmentKind {
+  ASSIGNMENT @map("assignment")
+  QUIZ       @map("quiz")
+}
+
+/// One grading configuration per offering. Totals are computed, never stored,
+/// so changing this row recalculates every learner on the next read.
+model GradingScheme {
+  id                 String      @id @default(cuid())
+  tenantId           String      @map("tenant_id")
+  offeringId         String      @unique @map("course_offering_id")
+  mode               GradingMode @default(POINTS)
+  /// Percentage a learner must reach to pass; null means no pass/fail outcome.
+  passMark           Decimal?    @map("pass_mark") @db.Decimal(5, 2)
+  /// Decimal places for the reported percentage (0-2).
+  rounding           Int         @default(2)
+  /// Letter bands, highest threshold first: [{ minPercent, letter }].
+  scale              Json        @default("[]")
+  /// The only way missing work counts as zero.
+  treatMissingAsZero Boolean     @default(false) @map("treat_missing_as_zero")
+  version            Int         @default(1)
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  tenant   Tenant             @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  offering CourseOffering     @relation(fields: [offeringId], references: [id], onDelete: Cascade)
+  weights  AssessmentWeight[]
+
+  @@index([tenantId])
+  @@map("grading_schemes")
+}
+
+/// Relative weight of one assessment inside a weighted scheme.
+model AssessmentWeight {
+  id       String         @id @default(cuid())
+  tenantId String         @map("tenant_id")
+  schemeId String         @map("grading_scheme_id")
+  kind     AssessmentKind
+  /// Assignment or quiz id; not a foreign key, because either table can own it.
+  refId    String         @map("ref_id")
+  weight   Decimal        @db.Decimal(6, 3)
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  tenant Tenant        @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  scheme GradingScheme @relation(fields: [schemeId], references: [id], onDelete: Cascade)
+
+  @@unique([schemeId, kind, refId])
+  @@index([tenantId, schemeId])
+  @@map("assessment_weights")
+}
+
+/// A learner excused from one assessment. Excused work leaves both sides of the
+/// calculation instead of counting as zero.
+model AssessmentExcusal {
+  id              String         @id @default(cuid())
+  tenantId        String         @map("tenant_id")
+  offeringId      String         @map("course_offering_id")
+  userId          String         @map("user_id")
+  kind            AssessmentKind
+  refId           String         @map("ref_id")
+  reason          String?
+  createdByUserId String?        @map("created_by_user_id")
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  tenant    Tenant         @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  offering  CourseOffering @relation(fields: [offeringId], references: [id], onDelete: Cascade)
+  user      User           @relation("assessment_excusal_user", fields: [userId], references: [id], onDelete: Cascade)
+  createdBy User?          @relation("assessment_excusal_created_by", fields: [createdByUserId], references: [id], onDelete: SetNull)
+
+  @@unique([offeringId, userId, kind, refId])
+  @@index([tenantId, offeringId])
+  @@map("assessment_excusals")
+}
+
+// ---------------------------------------------------------------------------
+// Live sessions and attendance (Phase 9)
+// ---------------------------------------------------------------------------
+
+/// In-app notifications. `dedupeKey` identifies the logical event that produced
+/// a notification so a retried job cannot deliver the same notice twice.
+enum NotificationCategory {
+  SESSIONS      @map("sessions")
+  ASSIGNMENTS   @map("assignments")
+  QUIZZES       @map("quizzes")
+  GRADES        @map("grades")
+  ANNOUNCEMENTS @map("announcements")
+  SECURITY      @map("security")
+  ACCOUNT       @map("account")
+
+  @@map("notification_category")
+}
+
+enum LiveSessionStatus {
+  SCHEDULED @map("scheduled")
+  CANCELLED @map("cancelled")
+  COMPLETED @map("completed")
+}
+
+enum AttendanceStatus {
+  PRESENT @map("present")
+  ABSENT  @map("absent")
+  LATE    @map("late")
+  EXCUSED @map("excused")
+}
+
+/// Who produced the record. A QR check-in is the learner's own claim; staff can
+/// still correct it afterwards, and the source is kept for reporting.
+enum AttendanceSource {
+  STAFF @map("staff")
+  QR    @map("qr")
+
+  @@map("attendance_source")
+}
+
+/// One scheduled live class for an offering. The join URL is the external
+/// meeting link; nothing in the platform hosts the call itself.
+model LiveSession {
+  id                         String            @id @default(cuid())
+  tenantId                   String            @map("tenant_id")
+  offeringId                 String            @map("course_offering_id")
+  title                      String
+  description                String?
+  startsAt                   DateTime          @map("starts_at") @db.Timestamptz(3)
+  endsAt                     DateTime          @map("ends_at") @db.Timestamptz(3)
+  joinUrl                    String?           @map("join_url")
+  status                     LiveSessionStatus @default(SCHEDULED)
+  createdByUserId            String?           @map("created_by_user_id")
+  cancelledAt                DateTime?         @map("cancelled_at") @db.Timestamptz(3)
+  /// Bumped whenever the schedule changes, so a reminder can spot a stale one.
+  version                    Int               @default(1)
+  /// Attendances frozen early by staff; a policy lock needs no flag.
+  attendanceLockedAt         DateTime?         @map("attendance_locked_at") @db.Timestamptz(3)
+  /// Set when an administrator lifts a lock so a correction can be recorded.
+  attendanceReopenedAt       DateTime?         @map("attendance_reopened_at") @db.Timestamptz(3)
+  attendanceReopenedByUserId String?           @map("attendance_reopened_by_user_id")
+  /// Random value inside the current QR check-in code. Rotating it invalidates
+  /// every previously printed or shared code for this session.
+  checkInNonce               String?           @map("check_in_nonce")
+  /// When the current QR check-in code stops working.
+  checkInExpiresAt           DateTime?         @map("check_in_expires_at") @db.Timestamptz(3)
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  tenant     Tenant             @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  offering   CourseOffering     @relation(fields: [offeringId], references: [id], onDelete: Cascade)
+  createdBy  User?              @relation("live_session_created_by", fields: [createdByUserId], references: [id], onDelete: SetNull)
+  reopenedBy User?              @relation("live_session_reopened_by", fields: [attendanceReopenedByUserId], references: [id], onDelete: SetNull)
+  attendance AttendanceRecord[]
+
+  @@index([tenantId, offeringId, startsAt])
+  @@index([tenantId, startsAt])
+  @@map("live_sessions")
+}
+
+/// One learner's attendance for one session. There is at most one row per
+/// learner per session; marking again corrects the same record.
+model AttendanceRecord {
+  id             String           @id @default(cuid())
+  tenantId       String           @map("tenant_id")
+  sessionId      String           @map("live_session_id")
+  userId         String           @map("user_id")
+  status         AttendanceStatus
+  source         AttendanceSource @default(STAFF)
+  note           String?
+  markedByUserId String?          @map("marked_by_user_id")
+  markedAt       DateTime         @default(now()) @map("marked_at") @db.Timestamptz(3)
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  tenant   Tenant      @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  session  LiveSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  user     User        @relation("attendance_user", fields: [userId], references: [id], onDelete: Cascade)
+  markedBy User?       @relation("attendance_marked_by", fields: [markedByUserId], references: [id], onDelete: SetNull)
+
+  @@unique([sessionId, userId])
+  @@index([tenantId, userId])
+  @@map("attendance_records")
+}
+
+/// One in-app notification per recipient. Email delivery mirrors this table so a
+/// retried notification job sees the existing row and skips the message.
+model Notification {
+  id        String               @id @default(cuid())
+  tenantId  String               @map("tenant_id")
+  userId    String               @map("user_id")
+  category  NotificationCategory
+  title     String
+  body      String
+  href      String?
+  /// Stable identity of the event, e.g. `live_session:<id>:cancelled:<startsAt>`.
+  dedupeKey String?              @map("dedupe_key")
+  readAt    DateTime?            @map("read_at") @db.Timestamptz(3)
+  createdAt DateTime             @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  user   User   @relation("notification_recipient", fields: [userId], references: [id], onDelete: Cascade)
+
+  /// A null key stays outside the constraint, so uncapped notices are allowed.
+  @@unique([tenantId, userId, dedupeKey])
+  @@index([tenantId, userId, readAt])
+  @@index([tenantId, userId, createdAt])
+  @@map("notifications")
+}
+
+// ---------------------------------------------------------------------------
+// Course communication (Phase 9)
+// ---------------------------------------------------------------------------
+
+enum AnnouncementStatus {
+  DRAFT     @map("draft")
+  PUBLISHED @map("published")
+  WITHDRAWN @map("withdrawn")
+
+  @@map("announcement_status")
+}
+
+/// A course announcement. Drafts are visible to staff only; publishing notifies
+/// the enrolled cohort once per learner and withdraws it from their view.
+model Announcement {
+  id           String             @id @default(cuid())
+  tenantId     String             @map("tenant_id")
+  offeringId   String             @map("course_offering_id")
+  authorUserId String             @map("author_user_id")
+  title        String
+  body         String
+  status       AnnouncementStatus @default(DRAFT)
+  pinned       Boolean            @default(false)
+  publishedAt  DateTime?          @map("published_at") @db.Timestamptz(3)
+  withdrawnAt  DateTime?          @map("withdrawn_at") @db.Timestamptz(3)
+  createdAt    DateTime           @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt    DateTime           @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  tenant   Tenant         @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  offering CourseOffering @relation(fields: [offeringId], references: [id], onDelete: Cascade)
+  author   User           @relation("announcement_author", fields: [authorUserId], references: [id], onDelete: Restrict)
+
+  @@index([tenantId, offeringId, status, publishedAt])
+  @@map("announcements")
+}
+
+enum DiscussionThreadStatus {
+  OPEN   @map("open")
+  LOCKED @map("locked")
+  HIDDEN @map("hidden")
+
+  @@map("discussion_thread_status")
+}
+
+enum DiscussionPostStatus {
+  VISIBLE @map("visible")
+  HIDDEN  @map("hidden")
+
+  @@map("discussion_post_status")
+}
+
+/// A course discussion thread. Locking stops new replies; hiding removes it from
+/// learners while keeping the evidence for staff.
+model DiscussionThread {
+  id             String                 @id @default(cuid())
+  tenantId       String                 @map("tenant_id")
+  offeringId     String                 @map("course_offering_id")
+  authorUserId   String                 @map("author_user_id")
+  title          String
+  body           String
+  status         DiscussionThreadStatus @default(OPEN)
+  pinned         Boolean                @default(false)
+  postCount      Int                    @default(0) @map("post_count")
+  lastActivityAt DateTime               @default(now()) @map("last_activity_at") @db.Timestamptz(3)
+  createdAt      DateTime               @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt      DateTime               @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  tenant   Tenant           @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  offering CourseOffering   @relation(fields: [offeringId], references: [id], onDelete: Cascade)
+  author   User             @relation("discussion_thread_author", fields: [authorUserId], references: [id], onDelete: Restrict)
+  posts    DiscussionPost[]
+
+  @@index([tenantId, offeringId, lastActivityAt])
+  @@map("discussion_threads")
+}
+
+/// One reply in a thread. A hidden reply stays in the table so a moderator can
+/// reinstate it and the audit trail keeps pointing at real content.
+model DiscussionPost {
+  id             String               @id @default(cuid())
+  tenantId       String               @map("tenant_id")
+  threadId       String               @map("discussion_thread_id")
+  authorUserId   String               @map("author_user_id")
+  body           String
+  status         DiscussionPostStatus @default(VISIBLE)
+  hiddenAt       DateTime?            @map("hidden_at") @db.Timestamptz(3)
+  hiddenByUserId String?              @map("hidden_by_user_id")
+  createdAt      DateTime             @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  tenant   Tenant           @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  thread   DiscussionThread @relation(fields: [threadId], references: [id], onDelete: Cascade)
+  author   User             @relation("discussion_post_author", fields: [authorUserId], references: [id], onDelete: Restrict)
+  hiddenBy User?            @relation("discussion_post_hidden_by", fields: [hiddenByUserId], references: [id], onDelete: SetNull)
+
+  @@index([tenantId, threadId, createdAt])
+  @@map("discussion_posts")
+}
+
+// ---------------------------------------------------------------------------
+// Notification preferences, delivery queue, and direct messages (Phase 9)
+// ---------------------------------------------------------------------------
+
+/// A person's choice of channels for one notification category. A missing row
+/// means "everything on", so a new category needs no backfill.
+model NotificationPreference {
+  id        String               @id @default(cuid())
+  tenantId  String               @map("tenant_id")
+  userId    String               @map("user_id")
+  category  NotificationCategory
+  inApp     Boolean              @default(true) @map("in_app")
+  email     Boolean              @default(true)
+  updatedAt DateTime             @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  user   User   @relation("notification_preference", fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([tenantId, userId, category])
+  @@map("notification_preferences")
+}
+
+enum NotificationDeliveryStatus {
+  PENDING @map("pending")
+  SENT    @map("sent")
+  FAILED  @map("failed")
+  SKIPPED @map("skipped")
+
+  @@map("notification_delivery_status")
+}
+
+/// Durable email queue. One row per logical message, keyed on the same dedupe
+/// key as the in-app notice, so a retried job cannot send the same email twice.
+/// A null `nextAttemptAt` means the queue will not try again; `status` and
+/// `lastError` say why.
+model NotificationDelivery {
+  id            String                     @id @default(cuid())
+  tenantId      String                     @map("tenant_id")
+  userId        String                     @map("user_id")
+  category      NotificationCategory
+  template      String
+  payload       Json
+  dedupeKey     String                     @map("dedupe_key")
+  status        NotificationDeliveryStatus @default(PENDING)
+  attempts      Int                        @default(0)
+  lastError     String?                    @map("last_error")
+  nextAttemptAt DateTime?                  @map("next_attempt_at") @db.Timestamptz(3)
+  sentAt        DateTime?                  @map("sent_at") @db.Timestamptz(3)
+  createdAt     DateTime                   @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt     DateTime                   @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  user   User   @relation("notification_delivery", fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([tenantId, userId, dedupeKey])
+  @@index([status, nextAttemptAt])
+  @@map("notification_deliveries")
+}
+
+/// A private message inside one course conversation. Messages are scoped to the
+/// offering so a conversation cannot reach outside the class it belongs to.
+model DirectMessage {
+  id              String    @id @default(cuid())
+  tenantId        String    @map("tenant_id")
+  offeringId      String    @map("course_offering_id")
+  senderUserId    String    @map("sender_user_id")
+  recipientUserId String    @map("recipient_user_id")
+  body            String
+  readAt          DateTime? @map("read_at") @db.Timestamptz(3)
+  createdAt       DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  tenant    Tenant         @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  offering  CourseOffering @relation(fields: [offeringId], references: [id], onDelete: Cascade)
+  sender    User           @relation("direct_message_sender", fields: [senderUserId], references: [id], onDelete: Cascade)
+  recipient User           @relation("direct_message_recipient", fields: [recipientUserId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, offeringId, recipientUserId, readAt])
+  @@index([tenantId, offeringId, senderUserId, createdAt])
+  @@map("direct_messages")
+}
+
+// ---------------------------------------------------------------------------
+// Phase 10 — Outcome-based education (mapping and versioned policy)
+// Attainment numbers are not computed until an institution confirms a formula.
+// ---------------------------------------------------------------------------
+
+enum ProgrammeOutcomeType {
+  PEO @map("peo")
+  PO  @map("po")
+  PSO @map("pso")
+}
+
+enum OutcomeRecordStatus {
+  DRAFT    @map("draft")
+  ACTIVE   @map("active")
+  ARCHIVED @map("archived")
+}
+
+enum AssessmentMappingKind {
+  ASSIGNMENT @map("assignment")
+  QUESTION   @map("question")
+}
+
+enum AttainmentPolicyStatus {
+  DRAFT    @map("draft")
+  ACTIVE   @map("active")
+  ARCHIVED @map("archived")
+}
+
+/// PEO, PO, or PSO belonging to one programme.
+model ProgrammeOutcome {
+  id          String                @id @default(cuid())
+  tenantId    String                @map("tenant_id")
+  programmeId String                @map("programme_id")
+  type        ProgrammeOutcomeType
+  code        String
+  title       String
+  description String?
+  position    Int
+  status      OutcomeRecordStatus   @default(ACTIVE)
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  tenant    Tenant           @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  programme Programme        @relation(fields: [programmeId], references: [id], onDelete: Restrict)
+  mappings  OutcomeMapping[]
+
+  @@unique([programmeId, type, code])
+  @@index([tenantId, programmeId, type])
+  @@map("programme_outcomes")
+}
+
+/// Course outcome (CO) for one offering. COs are not copied from the catalogue.
+model CourseOutcome {
+  id          String              @id @default(cuid())
+  tenantId    String              @map("tenant_id")
+  offeringId  String              @map("course_offering_id")
+  code        String
+  title       String
+  description String?
+  position    Int
+  status      OutcomeRecordStatus @default(ACTIVE)
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  tenant              Tenant                      @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  offering            CourseOffering              @relation(fields: [offeringId], references: [id], onDelete: Cascade)
+  programmeMappings   OutcomeMapping[]
+  assessmentMappings  AssessmentOutcomeMapping[]
+
+  @@unique([offeringId, code])
+  @@index([tenantId, offeringId])
+  @@map("course_outcomes")
+}
+
+/// CO to PO/PSO correlation. PEOs are not valid mapping targets.
+model OutcomeMapping {
+  id                  String @id @default(cuid())
+  tenantId            String @map("tenant_id")
+  courseOutcomeId     String @map("course_outcome_id")
+  programmeOutcomeId  String @map("programme_outcome_id")
+  /// Integer from the active policy's correlation scale (typically 1–3).
+  correlationLevel    Int    @map("correlation_level")
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  tenant           Tenant           @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  courseOutcome    CourseOutcome    @relation(fields: [courseOutcomeId], references: [id], onDelete: Cascade)
+  programmeOutcome ProgrammeOutcome @relation(fields: [programmeOutcomeId], references: [id], onDelete: Restrict)
+
+  @@unique([courseOutcomeId, programmeOutcomeId])
+  @@index([tenantId, programmeOutcomeId])
+  @@map("outcome_mappings")
+}
+
+/// Assignment or quiz question contributing evidence to a course outcome.
+model AssessmentOutcomeMapping {
+  id              String                @id @default(cuid())
+  tenantId        String                @map("tenant_id")
+  courseOutcomeId String                @map("course_outcome_id")
+  kind            AssessmentMappingKind
+  assignmentId    String?               @map("assignment_id")
+  questionId      String?               @map("question_id")
+  weight          Decimal               @default(1) @db.Decimal(6, 2)
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  tenant        Tenant        @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  courseOutcome CourseOutcome @relation(fields: [courseOutcomeId], references: [id], onDelete: Cascade)
+  assignment    Assignment?   @relation(fields: [assignmentId], references: [id], onDelete: Cascade)
+  question      Question?     @relation(fields: [questionId], references: [id], onDelete: Cascade)
+
+  @@unique([courseOutcomeId, assignmentId])
+  @@unique([courseOutcomeId, questionId])
+  @@index([tenantId, courseOutcomeId])
+  @@index([assignmentId])
+  @@index([questionId])
+  @@map("assessment_outcome_mappings")
+}
+
+/// Versioned attainment policy. Activated versions are immutable. The
+/// configuration records scale, rounding, and method status; it does not
+/// compute attainment until the institution confirms a formula.
+model AttainmentPolicy {
+  id            String                  @id @default(cuid())
+  tenantId      String                  @map("tenant_id")
+  name          String
+  version       Int
+  status        AttainmentPolicyStatus  @default(DRAFT)
+  configuration Json
+  notes         String?
+  activatedAt   DateTime?               @map("activated_at") @db.Timestamptz(3)
+  archivedAt    DateTime?               @map("archived_at") @db.Timestamptz(3)
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@unique([tenantId, name, version])
+  @@index([tenantId, status])
+  @@map("attainment_policies")
+}
+
+// ---------------------------------------------------------------------------
+// Completion and certificates (Phase 11)
+// ---------------------------------------------------------------------------
+
+enum CertificateStatus {
+  ISSUED   @map("issued")
+  REISSUED @map("reissued")
+  REVOKED  @map("revoked")
+}
+
+/// A certificate issued for one learner's completion of one offering. The
+/// learner, course, and institution names are snapshots, so a later rename does
+/// not rewrite a document that was already handed out. `verificationToken` is a
+/// public identifier: it reveals only the minimum needed to confirm the award.
+model Certificate {
+  id                String            @id @default(cuid())
+  tenantId          String            @map("tenant_id")
+  courseOfferingId  String            @map("course_offering_id")
+  userId            String            @map("user_id")
+  certificateNumber String            @unique @map("certificate_number")
+  verificationToken String            @unique @map("verification_token")
+  status            CertificateStatus @default(ISSUED)
+  learnerName       String            @map("learner_name")
+  courseCode        String            @map("course_code")
+  courseTitle       String            @map("course_title")
+  institutionName   String            @map("institution_name")
+  issuerName        String            @map("issuer_name")
+  /// The completion rules in force at issue time, so the award explains itself.
+  ruleSnapshot      Json              @map("rule_snapshot")
+  /// The facts the rules were evaluated against at issue time.
+  evidenceSnapshot  Json              @map("evidence_snapshot")
+  reissuedFromId    String?           @map("reissued_from_id")
+  issuedByUserId    String?           @map("issued_by_user_id")
+  issuedAt          DateTime          @default(now()) @map("issued_at") @db.Timestamptz(3)
+  revokedAt         DateTime?         @map("revoked_at") @db.Timestamptz(3)
+  revokedByUserId   String?           @map("revoked_by_user_id")
+  revocationReason  String?           @map("revocation_reason")
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  tenant   Tenant         @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  offering CourseOffering @relation(fields: [courseOfferingId], references: [id], onDelete: Restrict)
+  user     User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, courseOfferingId])
+  @@index([tenantId, userId])
+  @@map("certificates")
+}
+
+// ---------------------------------------------------------------------------
+// Integrations (Phase 12)
+// ---------------------------------------------------------------------------
+
+enum WebhookEventStatus {
+  RECEIVED  @map("received")
+  PROCESSED @map("processed")
+  FAILED    @map("failed")
+}
+
+/// A verified inbound webhook. The provider and its event id are unique, so a
+/// retry from the sender is stored once and answered as a duplicate. The raw
+/// payload is kept for replay while it is within the retention window.
+model WebhookEvent {
+  id          String             @id @default(cuid())
+  provider    String
+  externalId  String             @map("external_id")
+  eventType   String             @map("event_type")
+  payload     Json
+  payloadHash String             @map("payload_hash")
+  status      WebhookEventStatus @default(RECEIVED)
+  receivedAt  DateTime           @default(now()) @map("received_at") @db.Timestamptz(3)
+  processedAt DateTime?          @map("processed_at") @db.Timestamptz(3)
+  lastError   String?            @map("last_error")
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  @@unique([provider, externalId])
+  @@index([provider, receivedAt])
+  @@map("webhook_events")
+}

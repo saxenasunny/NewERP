@@ -1,0 +1,23 @@
+# Local development infrastructure only. Credentials here are non-secret
+# development defaults and must never be reused outside a developer machine.
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: lms-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: lms
+      POSTGRES_PASSWORD: lms_dev_password
+      POSTGRES_DB: lms_dev
+    ports:
+      - "5432:5432"
+    volumes:
+      - lms-postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U lms -d lms_dev"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+volumes:
+  lms-postgres-data:

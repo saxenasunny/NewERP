@@ -1,0 +1,171 @@
+"use server";
+
+import { redirect } from "next/navigation";
+
+import { currentRequestId, requireAccountContext } from "@/lib/auth/account";
+import { AppError, RateLimitedError } from "@/lib/errors";
+import { inviteUser, revokeInvitation } from "@/modules/identity/invitation-service";
+import {
+  assignRole,
+  deactivateUser,
+  reactivateUser,
+  removeRole,
+} from "@/modules/identity/user-service";
+
+function safeReturnTo(value: FormDataEntryValue | null, fallback: string): string {
+  const path = typeof value === "string" ? value : "";
+  return path.startsWith("/admin/users") ? path : fallback;
+}
+
+function withMessage(path: string, key: "notice" | "error", message: string): string {
+  const separator = path.includes("?") ? "&" : "?";
+  return `${path}${separator}${key}=${encodeURIComponent(message)}`;
+}
+
+function failureMessage(error: unknown): string {
+  if (error instanceof RateLimitedError) {
+    return "Too many attempts. Wait a moment and try again.";
+  }
+  if (error instanceof AppError) return error.message;
+  return "The change could not be saved. Try again.";
+}
+
+/**
+ * Runs a service call and captures any failure as a message.
+ *
+ * `redirect()` in Next.js works by throwing, so it must never sit inside a
+ * `try` block whose `catch` also redirects: the redirect would be caught as
+ * if it were a failure. Every action therefore redirects only after this
+ * helper has returned.
+ */
+type Attempt<T> = { ok: true; value: T } | { ok: false; message: string };
+
+async function attempt<T>(work: () => Promise<T>): Promise<Attempt<T>> {
+  try {
+    return { ok: true, value: await work() };
+  } catch (error) {
+    return { ok: false, message: failureMessage(error) };
+  }
+}
+
+export async function inviteUserAction(formData: FormData): Promise<void> {
+  const account = await requireAccountContext();
+  const returnTo = safeReturnTo(formData.get("returnTo"), "/admin/users");
+
+  const outcome = await attempt(async () =>
+    inviteUser(
+      account,
+      {
+        email: String(formData.get("email") ?? ""),
+        roleId: String(formData.get("roleId") ?? ""),
+      },
+      { requestId: await currentRequestId() },
+    ),
+  );
+
+  if (!outcome.ok) {
+    redirect(withMessage(returnTo, "error", outcome.message));
+  }
+
+  redirect(
+    withMessage(
+      returnTo,
+      "notice",
+      outcome.value.emailDelivered
+        ? "Invitation created and written to the development outbox."
+        : "Invitation created, but email delivery is not configured. The link is in the development outbox.",
+    ),
+  );
+}
+
+export async function revokeInvitationAction(formData: FormData): Promise<void> {
+  const account = await requireAccountContext();
+  const returnTo = safeReturnTo(formData.get("returnTo"), "/admin/users");
+
+  const outcome = await attempt(async () =>
+    revokeInvitation(account, String(formData.get("invitationId") ?? ""), {
+      requestId: await currentRequestId(),
+    }),
+  );
+
+  if (!outcome.ok) {
+    redirect(withMessage(returnTo, "error", outcome.message));
+  }
+  redirect(withMessage(returnTo, "notice", "Invitation revoked."));
+}
+
+export async function assignRoleAction(formData: FormData): Promise<void> {
+  const account = await requireAccountContext();
+  const userId = String(formData.get("userId") ?? "");
+  const returnTo = safeReturnTo(formData.get("returnTo"), `/admin/users/${userId}`);
+
+  const outcome = await attempt(async () =>
+    assignRole(
+      account,
+      { userId, roleId: String(formData.get("roleId") ?? "") },
+      { requestId: await currentRequestId() },
+    ),
+  );
+
+  if (!outcome.ok) {
+    redirect(withMessage(returnTo, "error", outcome.message));
+  }
+  redirect(withMessage(returnTo, "notice", "Role granted."));
+}
+
+export async function removeRoleAction(formData: FormData): Promise<void> {
+  const account = await requireAccountContext();
+  const userId = String(formData.get("userId") ?? "");
+  const returnTo = safeReturnTo(formData.get("returnTo"), `/admin/users/${userId}`);
+
+  const outcome = await attempt(async () =>
+    removeRole(account, String(formData.get("assignmentId") ?? ""), {
+      requestId: await currentRequestId(),
+    }),
+  );
+
+  if (!outcome.ok) {
+    redirect(withMessage(returnTo, "error", outcome.message));
+  }
+  redirect(withMessage(returnTo, "notice", "Role removed."));
+}
+
+export async function deactivateUserAction(formData: FormData): Promise<void> {
+  const account = await requireAccountContext();
+  const userId = String(formData.get("userId") ?? "");
+  const returnTo = safeReturnTo(formData.get("returnTo"), `/admin/users/${userId}`);
+
+  const outcome = await attempt(async () =>
+    deactivateUser(
+      account,
+      { userId, reason: String(formData.get("reason") ?? "") || undefined },
+      { requestId: await currentRequestId() },
+    ),
+  );
+
+  if (!outcome.ok) {
+    redirect(withMessage(returnTo, "error", outcome.message));
+  }
+  redirect(
+    withMessage(
+      returnTo,
+      "notice",
+      "Account deactivated. Every session was revoked and sign-in is blocked.",
+    ),
+  );
+}
+
+export async function reactivateUserAction(formData: FormData): Promise<void> {
+  const account = await requireAccountContext();
+  const userId = String(formData.get("userId") ?? "");
+  const returnTo = safeReturnTo(formData.get("returnTo"), `/admin/users/${userId}`);
+
+  const outcome = await attempt(async () =>
+    reactivateUser(account, userId, { requestId: await currentRequestId() }),
+  );
+
+  if (!outcome.ok) {
+    redirect(withMessage(returnTo, "error", outcome.message));
+  }
+  redirect(withMessage(returnTo, "notice", "Account reactivated."));
+}

@@ -1,0 +1,77 @@
+@import "tailwindcss";
+
+/*
+ * Design tokens. Components use these semantic names rather than raw colours,
+ * so tenant branding (limited, contrast-checked) can later override a small
+ * subset. Light theme only for now; dark mode is a deliberate later decision.
+ */
+@theme {
+  --font-sans: var(--font-geist-sans), ui-sans-serif, system-ui, -apple-system, sans-serif;
+  --font-mono: var(--font-geist-mono), ui-monospace, "SFMono-Regular", monospace;
+
+  --color-canvas: #f6f8f7;
+  --color-surface: #ffffff;
+  --color-surface-muted: #eef3f1;
+  --color-border: #dbe4e0;
+  --color-border-strong: #c2cfca;
+  --color-ink: #14201c;
+  --color-ink-muted: #52605b;
+
+  --color-brand-50: #edf8f5;
+  --color-brand-100: #d5efe8;
+  --color-brand-200: #abe0d6;
+  --color-brand-300: #7bcbbd;
+  --color-brand-400: #46ada0;
+  --color-brand-500: #268f83;
+  --color-brand-600: #197468;
+  --color-brand-700: #155c54;
+  --color-brand-800: #144a44;
+  --color-brand-900: #123d38;
+
+  --color-success: #0f7a4d;
+  --color-success-subtle: #e8f7ef;
+  --color-warning: #8a5a00;
+  --color-warning-subtle: #fff6e0;
+  --color-danger: #b42318;
+  --color-danger-subtle: #fdecea;
+  --color-info: #0b5fa5;
+  --color-info-subtle: #eaf3fb;
+
+  --radius-card: 0.75rem;
+  --shadow-card: 0 1px 2px rgb(20 32 28 / 0.06), 0 1px 3px rgb(20 32 28 / 0.04);
+}
+
+@layer base {
+  html {
+    -webkit-text-size-adjust: 100%;
+  }
+
+  body {
+    @apply bg-canvas text-ink font-sans antialiased;
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--color-brand-700);
+    outline-offset: 2px;
+  }
+
+  ::selection {
+    background-color: var(--color-brand-100);
+    color: var(--color-brand-900);
+  }
+
+  dialog::backdrop {
+    background-color: rgb(20 32 28 / 0.45);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
