@@ -1,11 +1,31 @@
 # Implementation Status
 
-Last updated: 2026-11-04
+Last updated: 2026-11-05
 
 Source of truth: [`docs/LMS_BUILD_SPEC.md`](LMS_BUILD_SPEC.md). This ledger follows
 the reporting format in section 17.1 of the specification.
 
 ## Current phase
+
+**Live Production Deployment on Vercel + Neon: deployed and verified.**
+
+The application is deployed live in production on **Vercel** (`https://newerp-blue.vercel.app`)
+backed by **Neon Serverless PostgreSQL** in `ap-southeast-1`. All 16 database migrations
+are applied (70 application tables). A clean production initialization script
+(`scripts/init-production.ts`) provisioned system permissions, platform roles, the tenant
+and institution records for "Main Institution" (MAIN), and the primary institution
+administrator account (`saxena.sunny85@gmail.com`) without populating fictional demo data.
+
+Background queue processing and reminders are scheduled via **cron-job.org** hitting
+`/api/cron/notifications` (every 5 min) and `/api/cron/reminders` (every 15 min) with
+a secret bearer token, cleanly navigating Vercel Hobby's daily cron restriction.
+
+Onboarding and invitations support direct link generation: when inviting someone, the
+single-use link is immediately displayed in the Admin dashboard with an "Open Link ↗"
+shortcut, and pending invitations offer a "Resend / Get Link" action. Transactional email
+is integrated via the Resend REST API (`RESEND_API_KEY`) in `lib/mail/send.ts`, with live
+sending verified, and the system outbox at `/dev/mail` is accessible to authenticated
+administrators in production for inspection and audit.
 
 **Phase 7 — quiz engine and question bank: complete and verified.**
 
@@ -1017,6 +1037,18 @@ effect server-side, and invalid/expired/reused tokens rejected.
 | 2026-11-04 | `npm run build`                                      | Passed; `/student/check-in/[token]` and the updated faculty session page compiled                                                                                                          |
 | 2026-11-04 | `npm run db:seed`                                    | Passed twice on 2026-11-04; the second run adds no rows. The seed creates no session codes                                                                                                 |
 
+### Live Production Deployment Verification (Vercel + Neon)
+
+| Date       | Component / Command                              | Result                                                                                                                                                                                            |
+| ---------- | ------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 2026-11-05 | `npx prisma migrate deploy` (Neon PostgreSQL)   | Successfully applied all 16 migrations (`20261029141217` through `20261104180000_phase13_qr_attendance`) to live Neon serverless pooler (`ep-billowing-river-b33damwr-pooler.c-4.ap-southeast-1.aws.neon.tech/neondb`). 70 tables active. |
+| 2026-11-05 | `npx tsx scripts/init-production.ts`             | Fresh production initialization: synchronized 36 system permissions, seeded platform and tenant roles, created "Main Institution" (`MAIN`), and created primary admin `saxena.sunny85@gmail.com` without fictional demo data. |
+| 2026-11-05 | Vercel Cloud Build & Deploy                      | Resolved Better Auth dynamic evaluation during static analysis (`dynamic = 'force-dynamic'`, deferred handler call in `/api/auth/[...all]`); build passed cleanly on Vercel Node.js runtime.     |
+| 2026-11-05 | Better Auth Domain Validation                    | Configured `trustedOrigins` with wildcard `"https://*.vercel.app"` and dynamic `process.env.VERCEL_URL` fallback, eliminating 403 `INVALID_ORIGIN` during credential sign-in.                     |
+| 2026-11-05 | Resend API Outbound Email Test                   | Native REST API integration in `lib/mail/send.ts`; live test payload sent to Resend API (`POST https://api.resend.com/emails`) returned HTTP 200 with message ID `01a1abdd-d97f-7ac5-87ab-710c3dadbf81`.                         |
+| 2026-11-05 | Background Schedulers (cron-job.org)             | Configured external cron triggers for `/api/cron/notifications` (every 5 min) and `/api/cron/reminders` (every 15 min) with bearer `CRON_SECRET`, cleanly bypassing Vercel Hobby daily limit.    |
+| 2026-11-05 | Admin Direct Invitation Links (Option 1)        | Updated `/admin/users` UI to display single-use invitation URLs with copy button and "Open Link ↗" shortcut; added "Resend / Get Link" to pending invitations; authorized admins on `/dev/mail`.   |
+
 ## Known issues and limitations
 
 - **Certificate PDFs, badges, learning paths, leaderboards, and recommendations are not
@@ -1054,15 +1086,9 @@ effect server-side, and invalid/expired/reused tokens rejected.
   structure is entered through the screens; there is no structure CSV yet.
 - **Rosters are managed one person at a time on the offering screen.** Bulk enrolment is
   available through the CSV pipeline rather than a multi-select control.
-- **Email delivery is unconfigured.** Development captures messages in
-  `email_messages`; production refuses to pretend and records the failure, so
-  every queued message ends `failed` after five attempts instead of leaving the
-  system. Phase 12 did not select an adapter or provider, so the queue still proves
-  retry and dedupe, not inbox delivery.
-- **The notification queue needs an external scheduler.** `npm run
-jobs:notifications` is the worker; nothing runs it automatically in this build,
-  and a process that dies mid-send leaves the row `pending` until the next run
-  retries it.
+- **Email delivery uses Resend API with on-screen link generation.** Live email delivery is implemented via Resend's REST API (`RESEND_API_KEY`) in `lib/mail/send.ts`. While a custom domain is not yet attached to Resend, outbound emails from `onboarding@resend.dev` are restricted by provider policy to the account owner (`saxena.sunny85@gmail.com`). To support instant onboarding for all faculty and students without requiring an external domain purchase, single-use invitation links are displayed directly in the Admin UI with 1-click copy and "Open Link ↗" shortcuts, and authenticated administrators can inspect messages in `/dev/mail`.
+- **Ephemeral filesystem on Vercel serverless.** Vercel functions execute in stateless containers where local filesystem writes are ephemeral. Course content file uploads and student assignment submissions require an S3-compatible object storage bucket (e.g. Cloudflare R2 or AWS S3) configured via `STORAGE_DRIVER=s3` for persistence across container lifecycles.
+- **The notification queue is powered by cron-job.org.** Background notification dispatch and reminder jobs are triggered externally via cron-job.org calling `/api/cron/notifications` (every 5 min) and `/api/cron/reminders` (every 15 min) with bearer token authorization (`CRON_SECRET`). Manual CLI runners (`npm run jobs:notifications`, `npm run jobs:reminders`) remain available for maintenance catch-up runs.
 - Better Auth's rate limiter is per process. A multi-instance deployment needs a
   shared store; the database limiter is the one that is cluster-wide today.
 - Platform-scope operations (tenant creation, platform audit) are modelled but
@@ -1253,7 +1279,7 @@ jobs:notifications` is the worker; nothing runs it automatically in this build,
 | `/faculty/courses/[offeringId]/gradebook/export`                     | Gradebook CSV (permission-checked, private, no-store)                            |
 | `/student/courses/[offeringId]/grades`                               | Learner's own released marks and current result                                  |
 | `/account`                                                           | Own profile, access, session                                                     |
-| `/dev/mail`                                                          | Development outbox (404 in production)                                           |
+| `/dev/mail`                                                          | System outbox (unlocked for authenticated institution administrators in prod)    |
 | `/design`                                                            | Component gallery (development only)                                             |
 | `/api/auth/[...all]`                                                 | Better Auth endpoints (sign-in, sign-out, reset, session)                        |
 | `/api/v1/me`                                                         | Authenticated identity (401 without a session; private, no-store)                |
@@ -1264,12 +1290,11 @@ jobs:notifications` is the worker; nothing runs it automatically in this build,
 | `/api/v1/webhooks/[provider]`                                        | HMAC-verified inbound webhook intake with per-provider idempotency               |
 | `/api/health/queue`                                                  | Notification queue counters for operators, with no recipient data                |
 | `/student/check-in/[token]`                                          | Learner QR check-in for a signed, short-lived session code (noindex)             |
+| `/api/cron/notifications`                                            | Background notification dispatch runner (requires bearer `CRON_SECRET`)          |
+| `/api/cron/reminders`                                                | Background session and assignment reminder runner (bearer `CRON_SECRET`)         |
 
 ## Next three concrete tasks
 
-1. Deploy to a staging host, run the release checklist against it, and record the
-   result here, including the parts the local drill cannot cover.
-2. Select an email provider and a real object-storage bucket, verify both through
-   their runbook checklists, and close the two oldest limitations.
-3. Add nonce-based `script-src` to the CSP and an external error reporter, then
-   rerun the header and health checks against the deployed environment.
+1. Connect persistent object storage (Cloudflare R2 or AWS S3) by setting `STORAGE_DRIVER=s3` and bucket credentials in Vercel to replace ephemeral local disk for course files and assignment submissions.
+2. Complete end-to-end user acceptance: use the generated single-use invitation link in `/admin/users` to onboard the first faculty member and verify course authoring.
+3. Configure a custom domain and verify DNS records on Resend (SPF/DKIM) when domain ownership is established to enable direct transactional emails to any learner/faculty domain.

@@ -23,8 +23,13 @@ browser.
 
 ## People and access
 
-- `/admin/users` invites by email and role, shows pending invitations, and lets you
-  revoke one. There is no public sign-up.
+- `/admin/users` invites members by email and role. There is no public sign-up.
+  When an invitation is sent, the system outputs the single-use acceptance link
+  directly on-screen with an "Open Link ↗" shortcut and 1-click copy. This allows
+  instant onboarding across any channel (chat, WhatsApp, email) without waiting for
+  DNS propagation.
+- The pending invitations table displays all unaccepted invites, with actions to
+  "Resend / Get Link" or revoke.
 - On a member's page you can grant or remove roles, deactivate an account (which
   revokes its sessions immediately), and read that person's audit trail.
 - The last active institution administrator cannot be deactivated. Promote someone
@@ -54,6 +59,8 @@ duplicating. Download the template from the page.
 
 - **Health**: `/api/health` (liveness), `/api/health/ready` (database),
   `/api/health/queue` (notification backlog counts).
+- **Outbox**: `/dev/mail` is unlocked for authenticated institution administrators in production
+  to inspect queued transactional emails, invitation tokens, and notifications.
 - **API description**: `/api/v1/openapi`.
 - **Backups**: follow `docs/runbooks/backup-and-restore.md`. A dump that has never
   been restored is not a backup.
@@ -61,7 +68,10 @@ duplicating. Download the template from the page.
 
 ## Things this build does not do
 
-Email delivery has no provider configured outside development, certificate PDFs
-are not generated, SSO is not implemented, and there is no leaderboard. Screens
-say so rather than pretending. If you need one of these for a launch, it is a
-development task, not a setting to switch on.
+Transactional email is integrated with Resend API (`RESEND_API_KEY`). While unverified
+with a custom domain, outbound emails are delivered to the registered administrator address,
+and on-screen direct links allow zero-delay onboarding for any domain without third-party
+email dependencies. Certificate PDFs are not generated (verification is web-first via
+`/verify/[token]`), SSO is not implemented, and there is no leaderboard. Screens say so
+rather than pretending. If you need one of these for a launch, it is a development task,
+not a setting to switch on.
