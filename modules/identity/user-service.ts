@@ -43,6 +43,19 @@ export type MemberRole = {
   roleName: string;
 };
 
+export type StudentDemographics = {
+  phone: string | null;
+  dateOfBirth: Date | null;
+  gender: string | null;
+  guardianName: string | null;
+  guardianPhone: string | null;
+  address: string | null;
+  city: string | null;
+  state: string | null;
+  postalCode: string | null;
+  country: string | null;
+};
+
 export type MemberSummary = {
   membershipId: string;
   userId: string;
@@ -51,7 +64,9 @@ export type MemberSummary = {
   status: "INVITED" | "ACTIVE" | "SUSPENDED";
   accountStatus: "ACTIVE" | "INVITED" | "DEACTIVATED" | "LOCKED";
   joinedAt: Date | null;
+  institutionalId?: string | null;
   roles: MemberRole[];
+  studentProfile?: StudentDemographics | null;
 };
 
 function tenantIdOf(account: AccountContext): string {
@@ -90,12 +105,27 @@ export async function listMembers(
       id: true,
       userId: true,
       status: true,
+      institutionalId: true,
       joinedAt: true,
       user: {
         select: {
           name: true,
           email: true,
           status: true,
+          studentProfile: {
+            select: {
+              phone: true,
+              dateOfBirth: true,
+              gender: true,
+              guardianName: true,
+              guardianPhone: true,
+              address: true,
+              city: true,
+              state: true,
+              postalCode: true,
+              country: true,
+            },
+          },
           roleAssignments: {
             where: { tenantId },
             select: {
@@ -116,6 +146,8 @@ export async function listMembers(
     status: membership.status,
     accountStatus: membership.user.status,
     joinedAt: membership.joinedAt,
+    institutionalId: membership.institutionalId,
+    studentProfile: membership.user.studentProfile,
     roles: membership.user.roleAssignments.map((assignment) => ({
       assignmentId: assignment.id,
       roleId: assignment.role.id,
@@ -139,12 +171,27 @@ export async function getMember(
       id: true,
       userId: true,
       status: true,
+      institutionalId: true,
       joinedAt: true,
       user: {
         select: {
           name: true,
           email: true,
           status: true,
+          studentProfile: {
+            select: {
+              phone: true,
+              dateOfBirth: true,
+              gender: true,
+              guardianName: true,
+              guardianPhone: true,
+              address: true,
+              city: true,
+              state: true,
+              postalCode: true,
+              country: true,
+            },
+          },
           roleAssignments: {
             where: { tenantId },
             select: { id: true, role: { select: { id: true, key: true, name: true } } },
@@ -165,6 +212,8 @@ export async function getMember(
     status: membership.status,
     accountStatus: membership.user.status,
     joinedAt: membership.joinedAt,
+    institutionalId: membership.institutionalId,
+    studentProfile: membership.user.studentProfile,
     roles: membership.user.roleAssignments.map((assignment) => ({
       assignmentId: assignment.id,
       roleId: assignment.role.id,

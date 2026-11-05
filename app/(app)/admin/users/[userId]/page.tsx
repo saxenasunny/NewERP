@@ -125,6 +125,73 @@ export default async function AdminUserDetailPage({
         </Alert>
       ) : null}
 
+      {member.institutionalId || member.studentProfile ? (
+        <section aria-labelledby="profile-heading" className="rounded-card border-border bg-surface shadow-card border p-5 flex flex-col gap-4">
+          <div className="flex flex-wrap items-center justify-between gap-3 border-border border-b pb-3">
+            <div>
+              <h2 id="profile-heading" className="text-ink text-lg font-semibold">
+                Admission & Demographic Record
+              </h2>
+              <p className="text-ink-muted text-sm">
+                Student identification and personal contact record on file.
+              </p>
+            </div>
+            {member.institutionalId ? (
+              <div className="flex items-center gap-2 bg-surface-muted px-3 py-1.5 rounded-lg border border-border">
+                <span className="text-xs uppercase tracking-wide text-ink-muted font-medium">
+                  Enrollment No:
+                </span>
+                <span className="font-mono font-bold text-brand-800 text-sm">
+                  {member.institutionalId}
+                </span>
+              </div>
+            ) : null}
+          </div>
+
+          {member.studentProfile ? (
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 text-sm">
+              <div>
+                <span className="text-ink-muted block text-xs font-medium uppercase">Phone</span>
+                <span className="text-ink font-medium">{member.studentProfile.phone ?? "—"}</span>
+              </div>
+              <div>
+                <span className="text-ink-muted block text-xs font-medium uppercase">Date of Birth</span>
+                <span className="text-ink font-medium">
+                  {member.studentProfile.dateOfBirth
+                    ? new Date(member.studentProfile.dateOfBirth).toISOString().slice(0, 10)
+                    : "—"}
+                </span>
+              </div>
+              <div>
+                <span className="text-ink-muted block text-xs font-medium uppercase">Gender</span>
+                <span className="text-ink font-medium">{member.studentProfile.gender ?? "—"}</span>
+              </div>
+              <div>
+                <span className="text-ink-muted block text-xs font-medium uppercase">Parent / Guardian</span>
+                <span className="text-ink font-medium">{member.studentProfile.guardianName ?? "—"}</span>
+              </div>
+              <div>
+                <span className="text-ink-muted block text-xs font-medium uppercase">Guardian Phone</span>
+                <span className="text-ink font-medium">{member.studentProfile.guardianPhone ?? "—"}</span>
+              </div>
+              <div className="sm:col-span-2 md:col-span-1">
+                <span className="text-ink-muted block text-xs font-medium uppercase">Address</span>
+                <span className="text-ink font-medium">
+                  {[
+                    member.studentProfile.address,
+                    member.studentProfile.city,
+                    member.studentProfile.state,
+                    member.studentProfile.postalCode,
+                  ]
+                    .filter(Boolean)
+                    .join(", ") || "—"}
+                </span>
+              </div>
+            </div>
+          ) : null}
+        </section>
+      ) : null}
+
       <section aria-labelledby="roles-heading" className="flex flex-col gap-4">
         <h2 id="roles-heading" className="text-ink text-lg font-semibold">
           Roles in {account.tenant.institutionName}

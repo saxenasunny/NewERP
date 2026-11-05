@@ -17,6 +17,7 @@ import { log } from "@/lib/observability/logger";
 import { sendMail } from "@/lib/mail/send";
 import { enforceRateLimit } from "@/lib/rate-limit";
 import { absoluteUrl } from "@/lib/url";
+import { generateNextEnrollmentNumber } from "@/modules/identity/enrollment-number";
 
 import { INVITATION_TTL_MS, generateSingleUseToken, hashToken, isWellFormedToken } from "./tokens";
 
@@ -39,6 +40,7 @@ export type InvitationPreview = {
   tenantName: string;
   institutionName: string;
   roleName: string;
+  roleKey: string;
   expiresAt: Date;
   /** True when the address already has an account: the visitor must sign in first. */
   requiresSignIn: boolean;
@@ -66,7 +68,7 @@ export async function listPendingInvitations(
       roleId: true,
       expiresAt: true,
       createdAt: true,
-      role: { select: { name: true } },
+      role: { select: { name: true, key: true } },
     },
   });
 
@@ -222,7 +224,7 @@ export async function getInvitationPreview(
       expiresAt: true,
       acceptedAt: true,
       revokedAt: true,
-      role: { select: { name: true } },
+      role: { select: { name: true, key: true } },
       tenant: {
         select: { name: true, institution: { select: { name: true } } },
       },
@@ -243,6 +245,7 @@ export async function getInvitationPreview(
     tenantName: invitation.tenant.name,
     institutionName: invitation.tenant.institution?.name ?? invitation.tenant.name,
     roleName: invitation.role.name,
+    roleKey: invitation.role.key,
     expiresAt: invitation.expiresAt,
     requiresSignIn: Boolean(existingUser?.accounts.length),
   };
@@ -256,6 +259,23 @@ export const acceptanceInputSchema = z
       .min(MIN_PASSWORD_LENGTH, `Use at least ${MIN_PASSWORD_LENGTH} characters.`)
       .max(128)
       .optional(),
+    phone: z.string().trim().max(30).optional().nullable(),
+    dateOfBirth: z.preprocess(
+      (val) => (val === "" || val === null || val === undefined ? undefined : val),
+      z
+        .string()
+        .regex(/^\d{4}-\d{2}-\d{2}$/, "Use the format YYYY-MM-DD.")
+        .transform((v) => new Date(`${v}T00:00:00.000Z`))
+        .optional()
+        .nullable(),
+    ),
+    gender: z.string().trim().max(20).optional().nullable(),
+    guardianName: z.string().trim().max(120).optional().nullable(),
+    guardianPhone: z.string().trim().max(30).optional().nullable(),
+    address: z.string().trim().max(255).optional().nullable(),
+    city: z.string().trim().max(100).optional().nullable(),
+    state: z.string().trim().max(100).optional().nullable(),
+    postalCode: z.string().trim().max(20).optional().nullable(),
   })
   .optional();
 
@@ -365,16 +385,56 @@ export async function acceptInvitation({
       },
     });
 
+    let institutionalId: string | null = null;
+    if (invitation.role.key === "student") {
+      institutionalId = await generateNextEnrollmentNumber(transaction, invitation.tenantId);
+    }
+
     await transaction.tenantMembership.upsert({
       where: { tenantId_userId: { tenantId: invitation.tenantId, userId: user.id } },
-      update: { status: "ACTIVE", joinedAt: new Date() },
+      update: {
+        status: "ACTIVE",
+        joinedAt: new Date(),
+        ...(institutionalId ? { institutionalId } : {}),
+      },
       create: {
         tenantId: invitation.tenantId,
         userId: user.id,
         status: "ACTIVE",
         joinedAt: new Date(),
+        institutionalId,
       },
     });
+
+    if (invitation.role.key === "student") {
+      await transaction.studentProfile.upsert({
+        where: { userId: user.id },
+        update: {
+          phone: input.phone || null,
+          dateOfBirth: input.dateOfBirth || null,
+          gender: input.gender || null,
+          guardianName: input.guardianName || null,
+          guardianPhone: input.guardianPhone || null,
+          address: input.address || null,
+          city: input.city || null,
+          state: input.state || null,
+          postalCode: input.postalCode || null,
+        },
+        create: {
+          tenantId: invitation.tenantId,
+          userId: user.id,
+          phone: input.phone || null,
+          dateOfBirth: input.dateOfBirth || null,
+          gender: input.gender || null,
+          guardianName: input.guardianName || null,
+          guardianPhone: input.guardianPhone || null,
+          address: input.address || null,
+          city: input.city || null,
+          state: input.state || null,
+          postalCode: input.postalCode || null,
+        },
+      });
+    }
 
     await transaction.userRoleAssignment.create({
       data: {
@@ -424,14 +484,30 @@ async function joinInstitution({
   actorUserId: string;
 }): Promise<void> {
   await db.$transaction(async (transaction) => {
+    let institutionalId: string | undefined = undefined;
+    if (invitation.role.key === "student") {
+      const existing = await transaction.tenantMembership.findUnique({
+        where: { tenantId_userId: { tenantId: invitation.tenantId, userId } },
+        select: { institutionalId: true },
+      });
+      if (!existing?.institutionalId) {
+        institutionalId = await generateNextEnrollmentNumber(transaction, invitation.tenantId);
+      }
+    }
+
     await transaction.tenantMembership.upsert({
       where: { tenantId_userId: { tenantId: invitation.tenantId, userId } },
-      update: { status: "ACTIVE", joinedAt: new Date() },
+      update: {
+        status: "ACTIVE",
+        joinedAt: new Date(),
+        ...(institutionalId ? { institutionalId } : {}),
+      },
       create: {
         tenantId: invitation.tenantId,
         userId,
         status: "ACTIVE",
         joinedAt: new Date(),
+        institutionalId,
       },
     });
 

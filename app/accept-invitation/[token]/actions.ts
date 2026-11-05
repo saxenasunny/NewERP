@@ -25,7 +25,19 @@ export async function acceptInvitationAction(formData: FormData): Promise<void> 
   try {
     await acceptInvitation({
       token,
-      rawInput: { name: name || undefined, password: password || undefined },
+      rawInput: {
+        name: name || undefined,
+        password: password || undefined,
+        phone: String(formData.get("phone") ?? "") || undefined,
+        dateOfBirth: String(formData.get("dateOfBirth") ?? "") || undefined,
+        gender: String(formData.get("gender") ?? "") || undefined,
+        guardianName: String(formData.get("guardianName") ?? "") || undefined,
+        guardianPhone: String(formData.get("guardianPhone") ?? "") || undefined,
+        address: String(formData.get("address") ?? "") || undefined,
+        city: String(formData.get("city") ?? "") || undefined,
+        state: String(formData.get("state") ?? "") || undefined,
+        postalCode: String(formData.get("postalCode") ?? "") || undefined,
+      },
       sessionUserId: session?.user.id ?? null,
     });
   } catch (error) {

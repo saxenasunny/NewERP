@@ -7,6 +7,7 @@ import { getDb, type DatabaseClient } from "@/lib/db/client";
 import { ConflictError, ResourceNotFoundError, TenantSelectionRequiredError } from "@/lib/errors";
 
 import { CsvParseError, parseCsv, type CsvRow } from "./csv";
+import { generateNextEnrollmentNumber } from "@/modules/identity/enrollment-number";
 
 /**
  * CSV imports for people, enrolments, and instructor assignments.
@@ -777,18 +778,28 @@ async function applyRow(
         select: { id: true },
       }));
 
+    const existingMembership = await tx.tenantMembership.findUnique({
+      where: { tenantId_userId: { tenantId, userId: user.id } },
+      select: { institutionalId: true },
+    });
+
+    let assignedId = institutionalId || existingMembership?.institutionalId || null;
+    if (!assignedId && roleKey === "student") {
+      assignedId = await generateNextEnrollmentNumber(tx, tenantId);
+    }
+
     await tx.tenantMembership.upsert({
       where: { tenantId_userId: { tenantId, userId: user.id } },
       update: {
         status: "ACTIVE",
         // A blank cell must not erase an existing student/staff number.
-        ...(institutionalId ? { institutionalId } : {}),
+        ...(assignedId ? { institutionalId: assignedId } : {}),
       },
       create: {
         tenantId,
         userId: user.id,
         status: "ACTIVE",
-        institutionalId,
+        institutionalId: assignedId,
         joinedAt: new Date(),
       },
     });

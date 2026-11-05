@@ -90,6 +90,7 @@ model Tenant {
   assessmentOutcomeMappings   AssessmentOutcomeMapping[]
   attainmentPolicies          AttainmentPolicy[]
   certificates                Certificate[]
+  studentProfiles             StudentProfile[]
 
   @@index([status])
   @@map("tenants")
@@ -172,6 +173,7 @@ model User {
   discussionPostsHidden  DiscussionPost[]         @relation("discussion_post_hidden_by")
   directMessagesSent     DirectMessage[]          @relation("direct_message_sender")
   directMessagesGot      DirectMessage[]          @relation("direct_message_recipient")
+  studentProfile         StudentProfile?
 
   @@index([status])
   @@map("users")
@@ -263,6 +265,30 @@ model TenantMembership {
   @@unique([tenantId, institutionalId])
   @@index([userId, status])
   @@map("tenant_memberships")
+}
+
+model StudentProfile {
+  id            String    @id @default(cuid())
+  tenantId      String    @map("tenant_id")
+  userId        String    @unique @map("user_id")
+  phone         String?
+  dateOfBirth   DateTime? @map("date_of_birth") @db.Date
+  gender        String?
+  guardianName  String?   @map("guardian_name")
+  guardianPhone String?   @map("guardian_phone")
+  address       String?
+  city          String?
+  state         String?
+  postalCode    String?   @map("postal_code")
+  country       String?   @default("India")
+  createdAt     DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt     DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId])
+  @@map("student_profiles")
 }
 
 // ---------------------------------------------------------------------------

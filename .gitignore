@@ -58,9 +58,10 @@ _*.py
 
 # internal tooling, database dumps and scratch configs
 /.freebuff/
-*.sql
 *.dump
 *.tar.gz
 *.backup
+*.sql
+!prisma/migrations/**/*.sql
 
 

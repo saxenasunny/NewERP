@@ -289,6 +289,12 @@ export default async function AdminUsersPage({
                     scope="col"
                     className="text-ink-muted px-3 py-2 text-xs font-medium tracking-wide uppercase"
                   >
+                    Enrollment No.
+                  </th>
+                  <th
+                    scope="col"
+                    className="text-ink-muted px-3 py-2 text-xs font-medium tracking-wide uppercase"
+                  >
                     Email
                   </th>
                   <th
@@ -312,6 +318,9 @@ export default async function AdminUsersPage({
                 {members.map((member) => (
                   <tr key={member.userId} className="border-border border-t">
                     <td className="text-ink px-3 py-2 text-sm font-medium">{member.name}</td>
+                    <td className="text-ink-muted px-3 py-2 text-sm font-mono">
+                      {member.institutionalId ?? "—"}
+                    </td>
                     <td className="text-ink-muted px-3 py-2 text-sm">{member.email}</td>
                     <td className="px-3 py-2">
                       <StatusBadge tone={STATUS_TONES[member.accountStatus]}>

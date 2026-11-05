@@ -5,7 +5,7 @@ import { AuthCard } from "@/components/auth/auth-card";
 import { acceptInvitationAction } from "./actions";
 import { Alert } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/field";
+import { Input, Select } from "@/components/ui/field";
 import { getInvitationPreview } from "@/modules/identity/invitation-service";
 
 export const metadata: Metadata = { title: "Accept invitation", robots: { index: false } };
@@ -107,8 +107,82 @@ export default async function AcceptInvitationPage({
             minLength={12}
             required
           />
+
+          {preview.roleKey === "student" ? (
+            <div className="border-border border-t pt-4 flex flex-col gap-4">
+              <div className="flex flex-col gap-1">
+                <h3 className="text-ink text-sm font-semibold">Student Admission Record</h3>
+                <p className="text-ink-muted text-xs">
+                  Your university enrollment number will be automatically allocated upon acceptance.
+                </p>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <Input
+                  id="student-phone"
+                  name="phone"
+                  label="Contact phone"
+                  type="tel"
+                  placeholder="e.g. 9876543210"
+                  required
+                />
+                <Input
+                  id="student-dob"
+                  name="dateOfBirth"
+                  label="Date of birth"
+                  type="date"
+                  required
+                />
+              </div>
+
+              <Select id="student-gender" name="gender" label="Gender" defaultValue="Male" required>
+                <option value="Male">Male</option>
+                <option value="Female">Female</option>
+                <option value="Other">Other</option>
+              </Select>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <Input
+                  id="student-guardian-name"
+                  name="guardianName"
+                  label="Parent / Guardian name"
+                  placeholder="Father's / Mother's name"
+                  required
+                />
+                <Input
+                  id="student-guardian-phone"
+                  name="guardianPhone"
+                  label="Parent / Guardian phone"
+                  type="tel"
+                  placeholder="Emergency contact number"
+                  required
+                />
+              </div>
+
+              <Input
+                id="student-address"
+                name="address"
+                label="Residential address"
+                placeholder="Street address / House number"
+                required
+              />
+
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <Input id="student-city" name="city" label="City" placeholder="City" required />
+                <Input id="student-state" name="state" label="State" placeholder="State" required />
+                <Input
+                  id="student-pincode"
+                  name="postalCode"
+                  label="Postal code"
+                  placeholder="PIN / Zip"
+                  required
+                />
+              </div>
+            </div>
+          ) : null}
+
           <Button type="submit" className="w-full">
-            Create account
+            Complete Admission & Create Account
           </Button>
           <p className="text-ink-muted text-sm">
             Invitation expires {preview.expiresAt.toLocaleDateString("en-GB")}. You will sign in
