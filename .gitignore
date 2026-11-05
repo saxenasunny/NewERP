@@ -53,3 +53,14 @@ next-env.d.ts
 _*.py
 .*.py
 
+# crucial internal documentation & specifications (kept locally only)
+/docs/
+
+# internal tooling, database dumps and scratch configs
+/.freebuff/
+*.sql
+*.dump
+*.tar.gz
+*.backup
+
+
