@@ -21,7 +21,11 @@ import {
   type MemberSummary,
 } from "@/modules/identity/user-service";
 
-import { inviteUserAction, revokeInvitationAction } from "./actions";
+import {
+  inviteUserAction,
+  resendInvitationAction,
+  revokeInvitationAction,
+} from "./actions";
 
 export const metadata: Metadata = { title: "People" };
 
@@ -53,7 +57,15 @@ function InvitationRow({
       <td className="text-ink-muted px-3 py-2 text-sm">
         {invitation.expiresAt.toLocaleDateString("en-GB")}
       </td>
-      <td className="px-3 py-2 text-right">
+      <td className="px-3 py-2 text-right space-x-2">
+        <form action={resendInvitationAction} className="inline-flex">
+          <input type="hidden" name="email" value={invitation.email} />
+          <input type="hidden" name="roleId" value={invitation.roleId} />
+          <input type="hidden" name="returnTo" value={returnTo} />
+          <Button variant="secondary" size="sm">
+            Resend / Get Link
+          </Button>
+        </form>
         <form action={revokeInvitationAction} className="inline-flex">
           <input type="hidden" name="invitationId" value={invitation.id} />
           <input type="hidden" name="returnTo" value={returnTo} />
@@ -110,7 +122,29 @@ export default async function AdminUsersPage({
 
       {notice ? (
         <Alert tone="success" title="Done">
-          {notice}
+          {notice.includes("http") ? (
+            <div className="flex flex-col gap-2 mt-1">
+              <p>{notice.split("http")[0]}</p>
+              <div className="flex items-center gap-2 rounded bg-surface p-2 border border-border text-xs">
+                <input
+                  type="text"
+                  readOnly
+                  value={`http${notice.split("http")[1]}`}
+                  className="w-full bg-transparent font-mono select-all focus:outline-none"
+                />
+                <a
+                  href={`http${notice.split("http")[1]}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-brand-800 font-semibold hover:underline shrink-0"
+                >
+                  Open Link ↗
+                </a>
+              </div>
+            </div>
+          ) : (
+            notice
+          )}
         </Alert>
       ) : null}
       {error ? (
@@ -157,10 +191,9 @@ export default async function AdminUsersPage({
             </div>
           </form>
           <p className="text-ink-muted text-sm">
-            The invitation link is single-use and expires in 7 days. Email delivery is not
-            configured yet, so the message is written to the{" "}
+            The invitation link is single-use and expires in 7 days. When email delivery (e.g. Resend) is configured, the invitation is emailed automatically. You can also view recent email activity in the{" "}
             <Link href="/dev/mail" className="text-brand-800 font-medium hover:underline">
-              development outbox
+              System Outbox
             </Link>
             .
           </p>

@@ -84,7 +84,7 @@ export async function inviteUser(
   account: AccountContext,
   rawInput: unknown,
   options: { requestId?: string } = {},
-): Promise<{ invitationId: string; emailDelivered: boolean }> {
+): Promise<{ invitationId: string; emailDelivered: boolean; link: string }> {
   requirePermission(account, "users.create");
   const tenantId = tenantIdOf(account);
   const input = invitationInputSchema.parse(rawInput);
@@ -171,7 +171,7 @@ export async function inviteUser(
     });
   }
 
-  return { invitationId: invitation.id, emailDelivered };
+  return { invitationId: invitation.id, emailDelivered, link };
 }
 
 export async function revokeInvitation(

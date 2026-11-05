@@ -51,12 +51,13 @@ async function attempt<T>(work: () => Promise<T>): Promise<Attempt<T>> {
 export async function inviteUserAction(formData: FormData): Promise<void> {
   const account = await requireAccountContext();
   const returnTo = safeReturnTo(formData.get("returnTo"), "/admin/users");
+  const email = String(formData.get("email") ?? "").trim();
 
   const outcome = await attempt(async () =>
     inviteUser(
       account,
       {
-        email: String(formData.get("email") ?? ""),
+        email,
         roleId: String(formData.get("roleId") ?? ""),
       },
       { requestId: await currentRequestId() },
@@ -67,15 +68,36 @@ export async function inviteUserAction(formData: FormData): Promise<void> {
     redirect(withMessage(returnTo, "error", outcome.message));
   }
 
-  redirect(
-    withMessage(
-      returnTo,
-      "notice",
-      outcome.value.emailDelivered
-        ? "Invitation created and written to the development outbox."
-        : "Invitation created, but email delivery is not configured. The link is in the development outbox.",
+  const notice = outcome.value.emailDelivered
+    ? `Invitation sent by email to ${email}.`
+    : `Invitation created for ${email}! Share this link: ${outcome.value.link}`;
+
+  redirect(withMessage(returnTo, "notice", notice));
+}
+
+export async function resendInvitationAction(formData: FormData): Promise<void> {
+  const account = await requireAccountContext();
+  const returnTo = safeReturnTo(formData.get("returnTo"), "/admin/users");
+  const email = String(formData.get("email") ?? "").trim();
+  const roleId = String(formData.get("roleId") ?? "").trim();
+
+  const outcome = await attempt(async () =>
+    inviteUser(
+      account,
+      { email, roleId },
+      { requestId: await currentRequestId() },
     ),
   );
+
+  if (!outcome.ok) {
+    redirect(withMessage(returnTo, "error", outcome.message));
+  }
+
+  const notice = outcome.value.emailDelivered
+    ? `New invitation link emailed to ${email}.`
+    : `New invitation link for ${email}: ${outcome.value.link}`;
+
+  redirect(withMessage(returnTo, "notice", notice));
 }
 
 export async function revokeInvitationAction(formData: FormData): Promise<void> {

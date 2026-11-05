@@ -4,9 +4,11 @@ import { notFound } from "next/navigation";
 import { Alert } from "@/components/ui/alert";
 import { PageHeader } from "@/components/ui/page-header";
 import { StatusBadge } from "@/components/ui/status-badge";
+import { getAccountContext } from "@/lib/auth/account";
 import { getDb } from "@/lib/db/client";
 
-export const metadata: Metadata = { title: "Development outbox", robots: { index: false } };
+export const dynamic = "force-dynamic";
+export const metadata: Metadata = { title: "System Outbox", robots: { index: false } };
 
 function firstLink(body: string): string | null {
   const match = body.match(/https?:\/\/[^\s]+/);
@@ -14,7 +16,12 @@ function firstLink(body: string): string | null {
 }
 
 export default async function DevelopmentMailPage() {
-  if (process.env.NODE_ENV === "production") notFound();
+  if (process.env.NODE_ENV === "production") {
+    const account = await getAccountContext();
+    if (!account || (!account.isPlatformAdmin && !account.permissions.has("users.create"))) {
+      notFound();
+    }
+  }
 
   const messages = await getDb().emailMessage.findMany({
     orderBy: { createdAt: "desc" },
