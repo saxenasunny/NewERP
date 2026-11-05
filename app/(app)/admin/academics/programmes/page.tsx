@@ -101,6 +101,7 @@ export default async function ProgrammesPage({
             id="programme-name"
             name="name"
             label={editing ? "Edit programme" : "Programme name"}
+            placeholder="e.g. Bachelor of Technology in CS"
             defaultValue={editing?.name}
             required
           />
@@ -108,7 +109,9 @@ export default async function ProgrammesPage({
             id="programme-code"
             name="code"
             label="Code"
+            placeholder="e.g. BTECH-CS or B.Tech"
             defaultValue={editing?.code}
+            hint="Letters, digits, hyphens, dots, underscores"
             required
           />
           <Select

@@ -21,12 +21,9 @@ function tenantIdOf(account: AccountContext): string {
 }
 
 function isUniqueViolation(error: unknown): boolean {
-  return (
-    typeof error === "object" &&
-    error !== null &&
-    "code" in error &&
-    (error as { code?: unknown }).code === "P2002"
-  );
+  if (typeof error !== "object" || error === null) return false;
+  const code = (error as { code?: unknown }).code;
+  return code === "P2002" || code === "23505";
 }
 
 async function guardUnique<T>(work: () => Promise<T>, message: string): Promise<T> {
@@ -52,9 +49,9 @@ const code = z
   .string()
   .trim()
   .min(2, "Use at least 2 characters.")
-  .max(16, "Use at most 16 characters.")
-  .regex(/^[A-Za-z0-9-]+$/, "Use letters, digits, and hyphens only.")
-  .transform((value) => value.toUpperCase());
+  .max(32, "Use at most 32 characters.")
+  .regex(/^[A-Za-z0-9._ -]+$/, "Use letters, digits, hyphens, periods, or underscores.")
+  .transform((value) => value.toUpperCase().replace(/\s+/g, " "));
 
 const name = z.string().trim().min(2, "Use at least 2 characters.").max(120);
 

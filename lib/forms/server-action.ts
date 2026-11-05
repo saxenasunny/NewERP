@@ -1,4 +1,5 @@
 import { AppError, RateLimitedError } from "@/lib/errors";
+import { ZodError } from "zod";
 
 /** The outcome of a Server Action service call, without throwing. */
 export type Attempt<T> = { ok: true; value: T } | { ok: false; message: string };
@@ -22,6 +23,37 @@ export function failureMessage(error: unknown): string {
     return "Too many attempts. Wait a moment and try again.";
   }
   if (error instanceof AppError) return error.message;
+
+  if (error instanceof ZodError) {
+    const firstIssue = error.issues[0];
+    if (firstIssue) {
+      const field = firstIssue.path.length ? `${firstIssue.path.join(".")}: ` : "";
+      return `${field}${firstIssue.message}`;
+    }
+  }
+
+  if (
+    typeof error === "object" &&
+    error !== null &&
+    "issues" in error &&
+    Array.isArray((error as { issues: unknown }).issues)
+  ) {
+    const issues = (error as { issues: Array<{ path?: (string | number)[]; message?: string }> }).issues;
+    const first = issues[0];
+    if (first?.message) {
+      const field = first.path && first.path.length ? `${first.path.join(".")}: ` : "";
+      return `${field}${first.message}`;
+    }
+  }
+
+  if (error instanceof Error && error.message) {
+    const code = (error as { code?: string }).code;
+    if (code === "P2002" || code === "23505") {
+      return "A record with these details already exists.";
+    }
+    return error.message;
+  }
+
   return "The change could not be saved. Try again.";
 }
 

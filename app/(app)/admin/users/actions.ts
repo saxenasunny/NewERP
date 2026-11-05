@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 
 import { currentRequestId, requireAccountContext } from "@/lib/auth/account";
 import { AppError, RateLimitedError } from "@/lib/errors";
+import { failureMessage } from "@/lib/forms/server-action";
 import { inviteUser, revokeInvitation } from "@/modules/identity/invitation-service";
 import {
   assignRole,
@@ -20,14 +21,6 @@ function safeReturnTo(value: FormDataEntryValue | null, fallback: string): strin
 function withMessage(path: string, key: "notice" | "error", message: string): string {
   const separator = path.includes("?") ? "&" : "?";
   return `${path}${separator}${key}=${encodeURIComponent(message)}`;
-}
-
-function failureMessage(error: unknown): string {
-  if (error instanceof RateLimitedError) {
-    return "Too many attempts. Wait a moment and try again.";
-  }
-  if (error instanceof AppError) return error.message;
-  return "The change could not be saved. Try again.";
 }
 
 /**
