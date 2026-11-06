@@ -11,6 +11,8 @@
  * both channels, so people who never opened the settings page get everything.
  */
 
+import { after } from "next/server";
+
 import type { DatabaseClient } from "@/lib/db/client";
 
 import {
@@ -94,7 +96,13 @@ export async function notify(db: DatabaseClient, input: NotifyInput): Promise<No
   );
 
   if (deliveryIds.length > 0) {
-    await processDeliveryQueue({ deliveryIds }, db);
+    try {
+      after(async () => {
+        await processDeliveryQueue({ deliveryIds }, db);
+      });
+    } catch {
+      await processDeliveryQueue({ deliveryIds }, db);
+    }
   }
 
   return { inApp, emailed: emailEnabled.map((recipient) => recipient.userId) };
