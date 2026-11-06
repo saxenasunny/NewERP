@@ -300,7 +300,7 @@ export async function scheduleSession(
   const parsed = scheduleSchema.parse(input);
   checkWindow(parsed.startsAt, parsed.endsAt);
 
-  return db.$transaction(async (tx) => {
+  const session = await db.$transaction(async (tx) => {
     const session = await tx.liveSession.create({
       data: {
         tenantId: access.tenantId,
@@ -328,6 +328,21 @@ export async function scheduleSession(
 
     return session;
   });
+
+  await notifyCohort(db, {
+    tenantId: access.tenantId,
+    sessionId: session.id,
+    offeringId,
+    courseCode: access.courseCode,
+    courseTitle: access.courseTitle,
+    title: parsed.title,
+    startsAt: parsed.startsAt,
+    endsAt: parsed.endsAt,
+    changed: "scheduled",
+    actorUserId: account.user.id,
+  });
+
+  return session;
 }
 
 const updateSchema = z.object({
@@ -448,6 +463,7 @@ export async function updateSession(
       startsAt,
       endsAt,
       changed: cancelling ? "cancelled" : "rescheduled",
+      actorUserId: account.user.id,
     });
   }
 
@@ -474,29 +490,72 @@ async function notifyCohort(
     title: string;
     startsAt: Date;
     endsAt: Date;
-    changed: "cancelled" | "rescheduled";
+    changed: "cancelled" | "rescheduled" | "scheduled";
+    actorUserId?: string;
   },
 ): Promise<{ notified: number }> {
-  const learners = await db.enrolment.findMany({
-    where: {
-      tenantId: input.tenantId,
-      courseOfferingId: input.offeringId,
-      status: "ACTIVE",
-    },
-    select: { userId: true, user: { select: { name: true, email: true } } },
-  });
-  if (learners.length === 0) return { notified: 0 };
+  const [learners, instructors, actorUser] = await Promise.all([
+    db.enrolment.findMany({
+      where: {
+        tenantId: input.tenantId,
+        courseOfferingId: input.offeringId,
+        status: "ACTIVE",
+      },
+      select: { userId: true, user: { select: { id: true, name: true, email: true } } },
+    }),
+    db.courseInstructor.findMany({
+      where: {
+        courseOfferingId: input.offeringId,
+      },
+      select: { userId: true, user: { select: { id: true, name: true, email: true } } },
+    }),
+    input.actorUserId
+      ? db.user.findUnique({
+          where: { id: input.actorUserId },
+          select: { id: true, name: true, email: true },
+        })
+      : Promise.resolve(null),
+  ]);
+
+  const recipientMap = new Map<string, { userId: string; name: string; email: string }>();
+
+  for (const learner of learners) {
+    if (learner.user?.email) {
+      recipientMap.set(learner.userId, {
+        userId: learner.userId,
+        name: learner.user.name,
+        email: learner.user.email,
+      });
+    }
+  }
+
+  for (const instructor of instructors) {
+    if (instructor.user?.email) {
+      recipientMap.set(instructor.userId, {
+        userId: instructor.userId,
+        name: instructor.user.name,
+        email: instructor.user.email,
+      });
+    }
+  }
+
+  if (actorUser?.email) {
+    recipientMap.set(actorUser.id, {
+      userId: actorUser.id,
+      name: actorUser.name,
+      email: actorUser.email,
+    });
+  }
+
+  const recipients = Array.from(recipientMap.values());
+  if (recipients.length === 0) return { notified: 0 };
 
   try {
     const result = await notify(db, {
       tenantId: input.tenantId,
       category: "sessions",
       template: "session.changed",
-      recipients: learners.map((learner) => ({
-        userId: learner.userId,
-        name: learner.user.name,
-        email: learner.user.email,
-      })),
+      recipients,
       payload: {
         href: `/student/courses/${input.offeringId}/sessions`,
         courseCode: input.courseCode,
@@ -526,7 +585,7 @@ async function notifyCohort(
  */
 export async function deliverSessionChangeNotifications(
   sessionId: string,
-  changed: "cancelled" | "rescheduled",
+  changed: "cancelled" | "rescheduled" | "scheduled",
   db: DatabaseClient = getDb(),
 ): Promise<{ notified: number }> {
   const session = await db.liveSession.findFirst({

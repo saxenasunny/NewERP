@@ -70,7 +70,7 @@ const templates = {
       sessionTitle: z.string().trim().min(1).max(200),
       startsAt: dateText,
       endsAt: dateText,
-      change: z.enum(["cancelled", "rescheduled"]),
+      change: z.enum(["cancelled", "rescheduled", "scheduled"]),
     }),
     render: (payload: {
       recipientName: string;
@@ -79,20 +79,30 @@ const templates = {
       sessionTitle: string;
       startsAt: string;
       endsAt: string;
-      change: "cancelled" | "rescheduled";
+      change: "cancelled" | "rescheduled" | "scheduled";
     }) => ({
-      title: `${payload.courseCode}: session ${payload.change}`,
+      title:
+        payload.change === "scheduled"
+          ? `${payload.courseCode}: new live session scheduled`
+          : `${payload.courseCode}: session ${payload.change}`,
       body:
-        payload.change === "rescheduled"
-          ? `"${payload.sessionTitle}" moved to ${formatWhen(payload.startsAt)} – ${formatWhen(payload.endsAt)}.`
-          : `"${payload.sessionTitle}" has been cancelled.`,
-      subject: `${payload.courseCode}: session ${payload.change}`,
+        payload.change === "scheduled"
+          ? `"${payload.sessionTitle}" scheduled for ${formatWhen(payload.startsAt)} – ${formatWhen(payload.endsAt)}.`
+          : payload.change === "rescheduled"
+            ? `"${payload.sessionTitle}" moved to ${formatWhen(payload.startsAt)} – ${formatWhen(payload.endsAt)}.`
+            : `"${payload.sessionTitle}" has been cancelled.`,
+      subject:
+        payload.change === "scheduled"
+          ? `${payload.courseCode}: new live session scheduled`
+          : `${payload.courseCode}: session ${payload.change}`,
       emailBody: [
         `Hello ${payload.recipientName},`,
         "",
-        `The session "${payload.sessionTitle}" for ${payload.courseCode} ${payload.courseTitle} has been ${payload.change}.`,
-        ...(payload.change === "rescheduled"
-          ? [`New time: ${payload.startsAt} to ${payload.endsAt}`]
+        payload.change === "scheduled"
+          ? `A new live session "${payload.sessionTitle}" for ${payload.courseCode} ${payload.courseTitle} has been scheduled.`
+          : `The session "${payload.sessionTitle}" for ${payload.courseCode} ${payload.courseTitle} has been ${payload.change}.`,
+        ...(payload.change !== "cancelled"
+          ? [`Time: ${payload.startsAt} to ${payload.endsAt}`]
           : []),
         "",
         "Open the course in the LMS for the current schedule.",

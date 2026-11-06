@@ -41,6 +41,36 @@ describe("notification templates", () => {
     expect(rendered.emailBody).toContain(long);
   });
 
+  it("renders scheduled, rescheduled, and cancelled session change notices", () => {
+    const scheduled = renderNotification("session.changed", {
+      recipientName: "Ada Learner",
+      href: "/student/courses/off-1/sessions",
+      courseCode: "CS101",
+      courseTitle: "Introduction to Programming",
+      sessionTitle: "Functions Deep Dive",
+      startsAt: "2026-11-10T10:00:00.000Z",
+      endsAt: "2026-11-10T11:30:00.000Z",
+      change: "scheduled",
+    });
+    expect(scheduled.title).toBe("CS101: new live session scheduled");
+    expect(scheduled.body).toContain("scheduled for");
+    expect(scheduled.emailBody).toContain("A new live session \"Functions Deep Dive\"");
+
+    const rescheduled = renderNotification("session.changed", {
+      recipientName: "Ada Learner",
+      href: "/student/courses/off-1/sessions",
+      courseCode: "CS101",
+      courseTitle: "Introduction to Programming",
+      sessionTitle: "Functions Deep Dive",
+      startsAt: "2026-11-12T10:00:00.000Z",
+      endsAt: "2026-11-12T11:30:00.000Z",
+      change: "rescheduled",
+    });
+    expect(rescheduled.title).toBe("CS101: session rescheduled");
+    expect(rescheduled.body).toContain("moved to");
+    expect(rescheduled.emailBody).toContain("has been rescheduled");
+  });
+
   it("rejects a payload that is missing a field, so a broken queue row is held", () => {
     expect(() =>
       renderNotification("session.reminder", {

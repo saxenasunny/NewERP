@@ -74,15 +74,36 @@ export async function runSessionReminders(
   const summary: ReminderRunSummary = { processed: sessions.length, recipients: 0, skipped: 0 };
 
   for (const session of sessions) {
-    const learners = await db.enrolment.findMany({
-      where: {
-        tenantId: session.tenantId,
-        courseOfferingId: session.offeringId,
-        status: "ACTIVE",
-      },
-      select: { userId: true, user: { select: { name: true, email: true } } },
-    });
-    if (learners.length === 0) continue;
+    const [learners, instructors] = await Promise.all([
+      db.enrolment.findMany({
+        where: {
+          tenantId: session.tenantId,
+          courseOfferingId: session.offeringId,
+          status: "ACTIVE",
+        },
+        select: { userId: true, user: { select: { name: true, email: true } } },
+      }),
+      db.courseInstructor.findMany({
+        where: {
+          courseOfferingId: session.offeringId,
+        },
+        select: { userId: true, user: { select: { name: true, email: true } } },
+      }),
+    ]);
+
+    const recipientMap = new Map<string, { userId: string; name: string; email: string }>();
+    for (const l of learners) {
+      if (l.user?.email) {
+        recipientMap.set(l.userId, { userId: l.userId, name: l.user.name, email: l.user.email });
+      }
+    }
+    for (const i of instructors) {
+      if (i.user?.email) {
+        recipientMap.set(i.userId, { userId: i.userId, name: i.user.name, email: i.user.email });
+      }
+    }
+    const recipients = Array.from(recipientMap.values());
+    if (recipients.length === 0) continue;
 
     let fresh: string[] = [];
     try {
@@ -90,11 +111,7 @@ export async function runSessionReminders(
         tenantId: session.tenantId,
         category: "sessions",
         template: "session.reminder",
-        recipients: learners.map((learner) => ({
-          userId: learner.userId,
-          name: learner.user.name,
-          email: learner.user.email,
-        })),
+        recipients,
         payload: {
           href: `/student/courses/${session.offeringId}/sessions`,
           courseCode: session.offering.course.code,
@@ -115,7 +132,7 @@ export async function runSessionReminders(
     }
 
     summary.recipients += fresh.length;
-    summary.skipped += learners.length - fresh.length;
+    summary.skipped += recipients.length - fresh.length;
   }
 
   return summary;
