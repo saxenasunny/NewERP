@@ -6,8 +6,11 @@ import { Breadcrumbs } from "@/components/ui/breadcrumbs";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
 import { StatusBadge } from "@/components/ui/status-badge";
+import { AttendanceHealthBadge } from "@/components/attendance/attendance-health-badge";
+import { AttendanceHealthCard } from "@/components/attendance/attendance-health-card";
 import { requireAccountContext } from "@/lib/auth/account";
 import { getDb } from "@/lib/db/client";
+import { getLearnerAttendanceSummary } from "@/modules/attendance/health-service";
 import { listLearnerCourses } from "@/modules/content/delivery-service";
 
 export const metadata: Metadata = { title: "Student Portal · My Learning" };
@@ -64,6 +67,31 @@ export default async function StudentDashboardPage() {
   const totalCompleted = courses.reduce((acc, c) => acc + c.completedCount, 0);
   const overallPercent = totalLessons > 0 ? Math.round((totalCompleted / totalLessons) * 100) : 0;
 
+  const { overall: attendanceOverall, courses: attendanceCourses } = canReadCourses
+    ? await getLearnerAttendanceSummary(account, db)
+    : {
+        overall: {
+          percentage: null,
+          formattedPercentage: "N/A",
+          status: "unrecorded" as const,
+          attended: 0,
+          recorded: 0,
+          absent: 0,
+          excused: 0,
+          unmarked: 0,
+          totalConducted: 0,
+          classesNeededToSafe: 0,
+          classesCanMiss: 0,
+          isDebarred: false,
+          message: "No attendance recorded yet.",
+        },
+        courses: [],
+      };
+
+  const attendanceByOffering = new Map(
+    attendanceCourses.map((c) => [c.offeringId, c.health]),
+  );
+
   return (
     <div className="flex flex-col gap-8 pb-8">
       {/* Motivational Student Hero Banner */}
@@ -119,12 +147,35 @@ export default async function StudentDashboardPage() {
             <p className="mt-1 text-2xl sm:text-3xl font-extrabold">{totalCompleted}</p>
           </div>
           <div className="rounded-2xl bg-white/10 p-3.5 sm:p-4 backdrop-blur-xs ring-1 ring-white/10">
-            <p className="text-brand-200 text-xs font-medium uppercase tracking-wider">Overall Progress</p>
+            <p className="text-brand-200 text-xs font-medium uppercase tracking-wider">Coursework Progress</p>
             <p className="mt-1 text-2xl sm:text-3xl font-extrabold">{overallPercent}%</p>
           </div>
           <div className="rounded-2xl bg-white/10 p-3.5 sm:p-4 backdrop-blur-xs ring-1 ring-white/10">
-            <p className="text-brand-200 text-xs font-medium uppercase tracking-wider">Live Classes</p>
-            <p className="mt-1 text-2xl sm:text-3xl font-extrabold">{upcomingSessions.length}</p>
+            <div className="flex items-center justify-between">
+              <p className="text-brand-200 text-xs font-medium uppercase tracking-wider">Attendance Rate</p>
+              <span
+                className={`text-[10px] px-1.5 py-0.5 rounded-full font-bold ${
+                  attendanceOverall.status === "safe"
+                    ? "bg-emerald-400/25 text-emerald-200"
+                    : attendanceOverall.status === "warning"
+                    ? "bg-amber-400/25 text-amber-200"
+                    : attendanceOverall.status === "critical"
+                    ? "bg-rose-400/25 text-rose-200"
+                    : "bg-white/10 text-brand-100"
+                }`}
+              >
+                {attendanceOverall.status === "safe"
+                  ? "Safe ≥75%"
+                  : attendanceOverall.status === "warning"
+                  ? "At Risk"
+                  : attendanceOverall.status === "critical"
+                  ? "Debarred Risk"
+                  : "No Data"}
+              </span>
+            </div>
+            <p className="mt-1 text-2xl sm:text-3xl font-extrabold">
+              {attendanceOverall.formattedPercentage}
+            </p>
           </div>
         </div>
       </section>
@@ -159,6 +210,8 @@ export default async function StudentDashboardPage() {
                     ? Math.round((course.completedCount / course.itemCount) * 100)
                     : 0;
 
+                const courseHealth = attendanceByOffering.get(course.offeringId);
+
                 // Color accent variants based on index
                 const accents = [
                   { stripe: "from-brand-500 to-indigo-600", badge: "info" as const },
@@ -177,13 +230,18 @@ export default async function StudentDashboardPage() {
                     <div className={`absolute inset-x-0 top-0 h-1.5 bg-gradient-to-r ${accent.stripe}`} />
 
                     <div>
-                      <div className="flex items-start justify-between gap-2">
+                      <div className="flex items-start justify-between gap-2 flex-wrap">
                         <span className="rounded-lg bg-surface-muted px-2.5 py-1 text-xs font-bold text-ink">
                           {course.courseCode}
                         </span>
-                        <StatusBadge tone={percent === 100 ? "success" : percent > 0 ? "brand" : "neutral"}>
-                          {percent}% Complete
-                        </StatusBadge>
+                        <div className="flex items-center gap-1.5 flex-wrap justify-end">
+                          {courseHealth && courseHealth.status !== "unrecorded" ? (
+                            <AttendanceHealthBadge health={courseHealth} />
+                          ) : null}
+                          <StatusBadge tone={percent === 100 ? "success" : percent > 0 ? "brand" : "neutral"}>
+                            {percent}%
+                          </StatusBadge>
+                        </div>
                       </div>
 
                       <h3 className="text-ink group-hover:text-brand-700 mt-3 text-base font-bold transition-colors line-clamp-1">
@@ -202,9 +260,9 @@ export default async function StudentDashboardPage() {
                       {/* Smooth Progress Meter */}
                       <div>
                         <div className="flex justify-between text-xs font-medium text-ink-muted mb-1.5">
-                          <span>Progress</span>
+                          <span>Lessons Progress</span>
                           <span>
-                            {course.completedCount} / {course.itemCount} lessons
+                            {course.completedCount} / {course.itemCount}
                           </span>
                         </div>
                         <div className="h-2 w-full overflow-hidden rounded-full bg-surface-muted">
@@ -229,8 +287,15 @@ export default async function StudentDashboardPage() {
           )}
         </div>
 
-        {/* Right Column: Upcoming Live Sessions & Shortcuts (1 col) */}
+        {/* Right Column: Attendance Health Card, Upcoming Live Sessions & Shortcuts (1 col) */}
         <div className="flex flex-col gap-6">
+          {/* Attendance Health Meter Card */}
+          <AttendanceHealthCard
+            health={attendanceOverall}
+            title="Attendance Health Meter"
+            subtitle="UGC 75% Rule Engine"
+          />
+
           {/* Upcoming Live Sessions Card */}
           <div className="rounded-2xl border border-border bg-surface p-5 shadow-sm flex flex-col gap-4">
             <div className="flex items-center justify-between border-b border-border pb-3">

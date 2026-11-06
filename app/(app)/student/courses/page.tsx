@@ -8,7 +8,9 @@ import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
 import { PageHeader } from "@/components/ui/page-header";
 import { StatusBadge } from "@/components/ui/status-badge";
+import { AttendanceHealthBadge } from "@/components/attendance/attendance-health-badge";
 import { requireAccountContext } from "@/lib/auth/account";
+import { getLearnerAttendanceSummary } from "@/modules/attendance/health-service";
 import { listLearnerCourses } from "@/modules/content/delivery-service";
 
 export const metadata: Metadata = { title: "My courses" };
@@ -26,7 +28,31 @@ export default async function StudentCoursesPage() {
     );
   }
 
-  const courses = await listLearnerCourses(account);
+  const [courses, attendanceSummary] = await Promise.all([
+    listLearnerCourses(account),
+    getLearnerAttendanceSummary(account).catch(() => ({
+      overall: {
+        percentage: null,
+        formattedPercentage: "N/A",
+        status: "unrecorded" as const,
+        attended: 0,
+        recorded: 0,
+        absent: 0,
+        excused: 0,
+        unmarked: 0,
+        totalConducted: 0,
+        classesNeededToSafe: 0,
+        classesCanMiss: 0,
+        isDebarred: false,
+        message: "No attendance recorded yet.",
+      },
+      courses: [],
+    })),
+  ]);
+
+  const attendanceByOffering = new Map(
+    attendanceSummary.courses.map((c) => [c.offeringId, c.health]),
+  );
 
   return (
     <div className="flex flex-col gap-8">
@@ -50,6 +76,8 @@ export default async function StudentCoursesPage() {
                 ? Math.round((course.completedCount / course.itemCount) * 100)
                 : 0;
 
+            const courseHealth = attendanceByOffering.get(course.offeringId);
+
             const accents = [
               { stripe: "from-brand-500 to-indigo-600", tone: "info" as const },
               { stripe: "from-emerald-500 to-teal-600", tone: "success" as const },
@@ -66,13 +94,18 @@ export default async function StudentCoursesPage() {
                 <div className={`absolute inset-x-0 top-0 h-2 bg-gradient-to-r ${accent.stripe}`} />
 
                 <div>
-                  <div className="flex items-start justify-between gap-2">
+                  <div className="flex items-start justify-between gap-2 flex-wrap">
                     <span className="rounded-lg bg-surface-muted px-2.5 py-1 text-xs font-bold text-ink">
                       {course.courseCode}
                     </span>
-                    <StatusBadge tone={percent === 100 ? "success" : percent > 0 ? "brand" : "neutral"}>
-                      {percent}%
-                    </StatusBadge>
+                    <div className="flex items-center gap-1.5 flex-wrap justify-end">
+                      {courseHealth && courseHealth.status !== "unrecorded" ? (
+                        <AttendanceHealthBadge health={courseHealth} />
+                      ) : null}
+                      <StatusBadge tone={percent === 100 ? "success" : percent > 0 ? "brand" : "neutral"}>
+                        {percent}%
+                      </StatusBadge>
+                    </div>
                   </div>
 
                   <h2 className="text-ink group-hover:text-brand-700 mt-3 text-lg font-bold transition-colors">
@@ -102,6 +135,16 @@ export default async function StudentCoursesPage() {
                       />
                     </div>
                   </div>
+
+                  {courseHealth && (courseHealth.status === "warning" || courseHealth.status === "critical") ? (
+                    <div className={`rounded-xl border p-2.5 text-xs ${
+                      courseHealth.status === "critical"
+                        ? "bg-rose-50 border-rose-200 text-rose-800"
+                        : "bg-amber-50 border-amber-200 text-amber-800"
+                    }`}>
+                      <p className="font-semibold">{courseHealth.message}</p>
+                    </div>
+                  ) : null}
 
                   <Link href={`/student/courses/${course.offeringId}`}>
                     <Button variant="primary" size="sm" className="w-full justify-between font-bold">

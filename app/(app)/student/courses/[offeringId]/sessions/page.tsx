@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 
+import { AttendanceHealthCard } from "@/components/attendance/attendance-health-card";
 import { Alert } from "@/components/ui/alert";
 import { Breadcrumbs } from "@/components/ui/breadcrumbs";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -7,6 +8,7 @@ import { PageHeader } from "@/components/ui/page-header";
 import { StatusBadge, type BadgeTone } from "@/components/ui/status-badge";
 import { requireAccountContext } from "@/lib/auth/account";
 import { AppError } from "@/lib/errors";
+import { getLearnerCourseAttendanceHealth } from "@/modules/attendance/health-service";
 import { getOfferingAccess } from "@/modules/content/content-service";
 import { listLearnerSessions, type AttendanceStatusKey } from "@/modules/sessions/session-service";
 
@@ -29,9 +31,16 @@ export default async function LearnerSessionsPage({
 
   let access;
   let schedule;
+  let health;
   try {
-    access = await getOfferingAccess(account, offeringId);
-    schedule = await listLearnerSessions(account, offeringId);
+    const [fetchedAccess, fetchedSchedule, fetchedHealth] = await Promise.all([
+      getOfferingAccess(account, offeringId),
+      listLearnerSessions(account, offeringId),
+      getLearnerCourseAttendanceHealth(account, offeringId).catch(() => null),
+    ]);
+    access = fetchedAccess;
+    schedule = fetchedSchedule;
+    health = fetchedHealth;
   } catch (caught) {
     return (
       <div className="flex flex-col gap-6">
@@ -57,11 +66,19 @@ export default async function LearnerSessionsPage({
         description={`${access.courseTitle} · ${access.termName}`}
       />
 
-      <Alert tone="info" title="Your attendance">
-        {schedule.summary.present} present · {schedule.summary.late} late ·{" "}
-        {schedule.summary.absent} absent · {schedule.summary.excused} excused ·{" "}
-        {schedule.summary.unmarked} not marked yet. Only your own attendance is shown.
-      </Alert>
+      {health ? (
+        <AttendanceHealthCard
+          health={health}
+          title={`${access.courseCode} Attendance Health`}
+          subtitle="Mandatory 75% Examination Requirement"
+        />
+      ) : (
+        <Alert tone="info" title="Your attendance">
+          {schedule.summary.present} present · {schedule.summary.late} late ·{" "}
+          {schedule.summary.absent} absent · {schedule.summary.excused} excused ·{" "}
+          {schedule.summary.unmarked} not marked yet. Only your own attendance is shown.
+        </Alert>
+      )}
 
       {schedule.sessions.length === 0 ? (
         <EmptyState
