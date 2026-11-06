@@ -3,10 +3,10 @@ import type { ReactNode } from "react";
 export type AlertTone = "info" | "success" | "warning" | "danger";
 
 const toneClasses: Record<AlertTone, string> = {
-  info: "border-info/20 bg-info-subtle text-info",
-  success: "border-success/20 bg-success-subtle text-success",
-  warning: "border-warning/20 bg-warning-subtle text-warning",
-  danger: "border-danger/20 bg-danger-subtle text-danger",
+  info: "border-sky-200 bg-sky-50 text-sky-900",
+  success: "border-emerald-200 bg-emerald-50 text-emerald-900",
+  warning: "border-amber-200 bg-amber-50 text-amber-900",
+  danger: "border-rose-200 bg-rose-50 text-rose-900",
 };
 
 export function Alert({
@@ -23,10 +23,10 @@ export function Alert({
   return (
     <div
       role={tone === "danger" ? "alert" : undefined}
-      className={`rounded-lg border px-4 py-3 text-sm ${toneClasses[tone]}`}
+      className={`rounded-xl border p-4 text-sm shadow-xs ${toneClasses[tone]}`}
     >
-      <p className="font-semibold">{title}</p>
-      {children ? <div className="text-ink-muted mt-1">{children}</div> : null}
+      <p className="font-bold flex items-center gap-1.5">{title}</p>
+      {children ? <div className="mt-1 text-ink-muted leading-relaxed">{children}</div> : null}
     </div>
   );
 }

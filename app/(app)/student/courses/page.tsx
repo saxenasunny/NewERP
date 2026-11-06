@@ -3,10 +3,11 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 
 import { PermissionDenied } from "@/components/permission-denied";
+import { Breadcrumbs } from "@/components/ui/breadcrumbs";
+import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
 import { PageHeader } from "@/components/ui/page-header";
 import { StatusBadge } from "@/components/ui/status-badge";
-import { Breadcrumbs } from "@/components/ui/breadcrumbs";
 import { requireAccountContext } from "@/lib/auth/account";
 import { listLearnerCourses } from "@/modules/content/delivery-service";
 
@@ -42,60 +43,77 @@ export default async function StudentCoursesPage() {
           description="You are enrolled in a course once an administrator or an import adds you to a course offering, and it becomes available when the teacher publishes it."
         />
       ) : (
-        <ul className="grid gap-4 sm:grid-cols-2">
-          {courses.map((course) => {
+        <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+          {courses.map((course, idx) => {
             const percent =
               course.itemCount > 0
                 ? Math.round((course.completedCount / course.itemCount) * 100)
                 : 0;
+
+            const accents = [
+              { stripe: "from-brand-500 to-indigo-600", tone: "info" as const },
+              { stripe: "from-emerald-500 to-teal-600", tone: "success" as const },
+              { stripe: "from-violet-500 to-purple-600", tone: "brand" as const },
+              { stripe: "from-amber-500 to-orange-600", tone: "warning" as const },
+            ];
+            const accent = accents[idx % accents.length] ?? accents[0]!;
+
             return (
-              <li
+              <div
                 key={course.offeringId}
-                className="rounded-card border-border bg-surface shadow-card flex flex-col gap-3 border p-4 sm:p-6"
+                className="group relative flex flex-col justify-between overflow-hidden rounded-2xl border border-border bg-surface p-5 shadow-sm transition-all duration-200 hover:-translate-y-1 hover:border-brand-200 hover:shadow-lg"
               >
-                <div className="flex flex-wrap items-start justify-between gap-2">
-                  <div>
-                    <h2 className="text-ink text-lg font-semibold">
-                      <Link
-                        href={`/student/courses/${course.offeringId}`}
-                        className="hover:underline"
-                      >
-                        {course.courseCode} · {course.courseTitle}
-                      </Link>
-                    </h2>
-                    <p className="text-ink-muted text-sm">
-                      {course.academicYearName} · {course.termName}
-                      {course.instructorNames.length > 0
-                        ? ` · ${course.instructorNames.join(", ")}`
-                        : ""}
-                    </p>
+                <div className={`absolute inset-x-0 top-0 h-2 bg-gradient-to-r ${accent.stripe}`} />
+
+                <div>
+                  <div className="flex items-start justify-between gap-2">
+                    <span className="rounded-lg bg-surface-muted px-2.5 py-1 text-xs font-bold text-ink">
+                      {course.courseCode}
+                    </span>
+                    <StatusBadge tone={percent === 100 ? "success" : percent > 0 ? "brand" : "neutral"}>
+                      {percent}%
+                    </StatusBadge>
                   </div>
-                  <StatusBadge tone={percent === 100 ? "success" : "info"}>{percent}%</StatusBadge>
+
+                  <h2 className="text-ink group-hover:text-brand-700 mt-3 text-lg font-bold transition-colors">
+                    <Link href={`/student/courses/${course.offeringId}`}>
+                      {course.courseTitle}
+                    </Link>
+                  </h2>
+
+                  <p className="text-ink-muted mt-1.5 text-xs">
+                    {course.academicYearName} · {course.termName}
+                    {course.instructorNames.length > 0
+                      ? ` · ${course.instructorNames.join(", ")}`
+                      : ""}
+                  </p>
                 </div>
-                <p className="text-ink-muted text-sm">
-                  {course.completedCount} of {course.itemCount} lessons complete
-                  {course.lastActivityAt
-                    ? ` · last activity ${course.lastActivityAt.toISOString().slice(0, 10)}`
-                    : ""}
-                </p>
-                <progress
-                  className="h-2 w-full overflow-hidden rounded-full"
-                  value={course.completedCount}
-                  max={course.itemCount || 1}
-                  aria-label={`Progress in ${course.courseCode}`}
-                >
-                  {percent}%
-                </progress>
-                <Link
-                  href={`/student/courses/${course.offeringId}`}
-                  className="text-brand-800 text-sm font-medium hover:underline"
-                >
-                  Open course
-                </Link>
-              </li>
+
+                <div className="mt-6 flex flex-col gap-4">
+                  <div>
+                    <div className="flex justify-between text-xs font-medium text-ink-muted mb-1.5">
+                      <span>{course.completedCount} of {course.itemCount} lessons complete</span>
+                      <span>{percent}%</span>
+                    </div>
+                    <div className="h-2 w-full overflow-hidden rounded-full bg-surface-muted">
+                      <div
+                        className={`h-full rounded-full bg-gradient-to-r ${accent.stripe} transition-all duration-500`}
+                        style={{ width: `${Math.max(percent, 4)}%` }}
+                      />
+                    </div>
+                  </div>
+
+                  <Link href={`/student/courses/${course.offeringId}`}>
+                    <Button variant="primary" size="sm" className="w-full justify-between font-bold">
+                      <span>Enter Course</span>
+                      <span>→</span>
+                    </Button>
+                  </Link>
+                </div>
+              </div>
             );
           })}
-        </ul>
+        </div>
       )}
     </div>
   );

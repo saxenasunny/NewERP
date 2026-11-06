@@ -25,12 +25,17 @@ export function SidebarNav({ role, onNavigate }: { role: RoleKey; onNavigate?: (
                     href={entry.href}
                     onClick={onNavigate}
                     aria-current={isActive ? "page" : undefined}
-                    className={`flex rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
+                    className={`flex items-center gap-2.5 rounded-xl px-3 py-2 text-sm font-medium transition-all duration-150 ${
                       isActive
-                        ? "bg-brand-50 text-brand-800"
-                        : "text-ink-muted hover:bg-surface-muted hover:text-ink"
+                        ? "bg-brand-50 text-brand-700 font-semibold shadow-xs ring-1 ring-brand-200/70"
+                        : "text-ink-muted hover:bg-surface-muted hover:text-ink hover:translate-x-0.5"
                     }`}
                   >
+                    <span
+                      className={`size-1.5 shrink-0 rounded-full transition-all ${
+                        isActive ? "bg-brand-600 ring-2 ring-brand-200" : "bg-transparent"
+                      }`}
+                    />
                     {entry.label}
                   </Link>
                 </li>

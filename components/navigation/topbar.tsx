@@ -50,34 +50,34 @@ export function Topbar({
         <div className="flex min-w-0 items-center gap-2">
           <Link
             href="/notifications"
-            className="hover:bg-surface-muted text-ink-muted flex items-center gap-2 rounded-lg px-2 py-1 text-sm"
+            className="hover:bg-brand-50 hover:text-brand-700 text-ink-muted flex items-center gap-2 rounded-xl px-2.5 py-1.5 text-sm transition-colors border border-transparent hover:border-brand-200/60"
             aria-label={
               unreadNotifications > 0
                 ? `Notifications, ${unreadNotifications} unread`
                 : "Notifications"
             }
           >
-            <span aria-hidden="true">🔔</span>
-            <span className="hidden sm:inline">Notifications</span>
+            <span aria-hidden="true" className="text-base">🔔</span>
+            <span className="hidden sm:inline font-medium">Notifications</span>
             {unreadNotifications > 0 ? (
-              <span className="bg-brand-800 rounded-full px-2 py-0.5 text-xs font-semibold text-white">
+              <span className="bg-gradient-to-r from-red-500 to-rose-600 rounded-full px-2 py-0.5 text-xs font-bold text-white shadow-xs">
                 {unreadNotifications > 99 ? "99+" : unreadNotifications}
               </span>
             ) : null}
           </Link>
           <Link
             href="/account"
-            className="hover:bg-surface-muted flex min-w-0 items-center gap-3 rounded-lg px-2 py-1"
+            className="hover:bg-surface-muted flex min-w-0 items-center gap-3 rounded-xl px-2 py-1 transition-colors"
           >
             <span
               aria-hidden="true"
-              className="bg-brand-100 text-brand-800 flex size-9 shrink-0 items-center justify-center rounded-full text-xs font-semibold"
+              className="bg-gradient-to-tr from-brand-600 via-indigo-600 to-violet-600 text-white shadow-xs flex size-9 shrink-0 items-center justify-center rounded-xl text-xs font-bold tracking-wider"
             >
               {initials(userName)}
             </span>
             <span className="hidden min-w-0 sm:block">
-              <span className="text-ink block truncate text-sm font-medium">{userName}</span>
-              <span className="text-ink-muted block truncate text-xs">{ROLES[role].label}</span>
+              <span className="text-ink block truncate text-sm font-semibold">{userName}</span>
+              <span className="text-brand-600 block truncate text-xs font-medium">{ROLES[role].label}</span>
             </span>
           </Link>
           <SignOutButton className="hidden sm:inline-flex" />

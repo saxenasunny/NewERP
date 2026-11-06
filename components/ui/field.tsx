@@ -20,7 +20,7 @@ type FieldRenderProps = {
 };
 
 const controlClasses =
-  "w-full rounded-lg border bg-surface px-3 py-2 text-sm text-ink placeholder:text-ink-muted/70 focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-brand-700 disabled:cursor-not-allowed disabled:bg-surface-muted";
+  "w-full rounded-xl border bg-surface px-3.5 py-2.5 text-sm text-ink placeholder:text-ink-muted/50 focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-brand-600 focus-visible:border-brand-500 disabled:cursor-not-allowed disabled:bg-surface-muted transition-all shadow-2xs";
 
 function controlClassesFor(error?: string): string {
   return `${controlClasses} ${error ? "border-danger" : "border-border-strong"}`;

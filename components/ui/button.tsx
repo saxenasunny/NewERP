@@ -7,17 +7,20 @@ export type ButtonVariant = "primary" | "secondary" | "ghost" | "danger";
 export type ButtonSize = "sm" | "md";
 
 const baseClasses =
-  "inline-flex items-center justify-center gap-2 rounded-lg font-medium transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-700 disabled:cursor-not-allowed disabled:opacity-60";
+  "inline-flex items-center justify-center gap-2 rounded-xl font-medium transition-all duration-150 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-600 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60 disabled:active:scale-100 shadow-sm cursor-pointer select-none";
 
 const variantClasses: Record<ButtonVariant, string> = {
-  primary: "bg-brand-700 text-white hover:bg-brand-800 active:bg-brand-900",
-  secondary: "border border-border-strong bg-surface text-ink hover:bg-surface-muted",
-  ghost: "text-ink hover:bg-surface-muted",
-  danger: "bg-danger text-white hover:bg-danger/90",
+  primary:
+    "bg-brand-700 bg-gradient-to-r from-brand-600 via-indigo-600 to-brand-700 text-white hover:from-brand-700 hover:to-indigo-800 shadow-brand-500/25 shadow-md hover:shadow-lg hover:shadow-brand-500/30",
+  secondary:
+    "border border-border-strong bg-surface text-ink hover:bg-surface-muted hover:border-brand-200 hover:text-brand-900 shadow-xs",
+  ghost: "text-ink hover:bg-brand-50 hover:text-brand-700 shadow-none",
+  danger:
+    "bg-danger bg-gradient-to-r from-danger to-red-600 text-white hover:from-red-600 hover:to-red-700 shadow-danger/25 shadow-md hover:shadow-lg",
 };
 
 const sizeClasses: Record<ButtonSize, string> = {
-  sm: "h-8 px-3 text-sm",
+  sm: "h-8 px-3 text-xs",
   md: "h-10 px-4 text-sm",
 };
 
