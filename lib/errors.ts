@@ -53,6 +53,12 @@ export class ConflictError extends AppError {
   }
 }
 
+export class ValidationError extends AppError {
+  constructor(message = "Invalid input.") {
+    super("VALIDATION_ERROR", message, 400);
+  }
+}
+
 /** Invalid, expired, revoked, or already-used single-use link. */
 export class InvalidLinkError extends AppError {
   constructor(message = "This link is invalid or has expired.") {

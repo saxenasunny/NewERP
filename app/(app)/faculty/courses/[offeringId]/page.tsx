@@ -133,6 +133,12 @@ export default async function CourseEditorPage({
               Live sessions
             </Link>
             <Link
+              href={`/faculty/courses/${access.offeringId}/timetable`}
+              className="text-brand-800 text-sm font-medium hover:underline"
+            >
+              Timetable
+            </Link>
+            <Link
               href={`/faculty/courses/${access.offeringId}/attendance`}
               className="text-brand-800 text-sm font-medium hover:underline"
             >

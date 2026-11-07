@@ -91,6 +91,8 @@ model Tenant {
   attainmentPolicies          AttainmentPolicy[]
   certificates                Certificate[]
   studentProfiles             StudentProfile[]
+  campusRooms                 CampusRoom[]
+  timetableSlots              TimetableSlot[]
 
   @@index([status])
   @@map("tenants")
@@ -174,6 +176,7 @@ model User {
   directMessagesSent     DirectMessage[]          @relation("direct_message_sender")
   directMessagesGot      DirectMessage[]          @relation("direct_message_recipient")
   studentProfile         StudentProfile?
+  timetableSlots         TimetableSlot[]          @relation("timetable_instructor")
 
   @@index([status])
   @@map("users")
@@ -718,6 +721,7 @@ model CourseOffering {
   directMessages    DirectMessage[]
   courseOutcomes    CourseOutcome[]
   certificates      Certificate[]
+  timetableSlots    TimetableSlot[]
 
   @@unique([courseId, termId, sectionId])
   @@index([tenantId, termId])
@@ -2094,4 +2098,69 @@ model WebhookEvent {
   @@unique([provider, externalId])
   @@index([provider, receivedAt])
   @@map("webhook_events")
+}
+
+// ---------------------------------------------------------------------------
+// Timetable & Weekly Scheduling (Phase 16)
+// ---------------------------------------------------------------------------
+
+enum DayOfWeek {
+  MONDAY
+  TUESDAY
+  WEDNESDAY
+  THURSDAY
+  FRIDAY
+  SATURDAY
+  SUNDAY
+}
+
+enum SlotType {
+  LECTURE
+  TUTORIAL
+  PRACTICAL
+}
+
+model CampusRoom {
+  id        String   @id @default(cuid())
+  tenantId  String   @map("tenant_id")
+  code      String   // e.g. "B-204", "CSE-LAB-1"
+  building  String   // e.g. "Block B"
+  floor     Int      @default(1)
+  capacity  Int      @default(60)
+  isLab     Boolean  @default(false) @map("is_lab")
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  slots  TimetableSlot[]
+  tenant Tenant          @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@unique([tenantId, code])
+  @@index([tenantId])
+  @@map("campus_rooms")
+}
+
+model TimetableSlot {
+  id               String    @id @default(cuid())
+  tenantId         String    @map("tenant_id")
+  courseOfferingId String    @map("course_offering_id")
+  instructorUserId String    @map("instructor_user_id")
+  roomId           String?   @map("room_id")
+  dayOfWeek        DayOfWeek @map("day_of_week")
+  startTime        String    @map("start_time") // "09:00" (HH:mm)
+  endTime          String    @map("end_time")   // "09:55" (HH:mm)
+  periodNumber     Int       @map("period_number") // 1 to 10
+  slotType         SlotType  @default(LECTURE) @map("slot_type")
+  createdAt        DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt        DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  tenant     Tenant         @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  offering   CourseOffering @relation(fields: [courseOfferingId], references: [id], onDelete: Cascade)
+  instructor User           @relation("timetable_instructor", fields: [instructorUserId], references: [id], onDelete: Cascade)
+  room       CampusRoom?    @relation(fields: [roomId], references: [id], onDelete: SetNull)
+
+  @@index([tenantId, dayOfWeek, periodNumber])
+  @@index([courseOfferingId])
+  @@index([instructorUserId])
+  @@index([roomId])
+  @@map("timetable_slots")
 }

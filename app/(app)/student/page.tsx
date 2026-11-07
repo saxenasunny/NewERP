@@ -8,10 +8,12 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { AttendanceHealthBadge } from "@/components/attendance/attendance-health-badge";
 import { AttendanceHealthCard } from "@/components/attendance/attendance-health-card";
+import { TodayScheduleWidget } from "@/components/timetable/today-schedule-widget";
 import { requireAccountContext } from "@/lib/auth/account";
 import { getDb } from "@/lib/db/client";
 import { getLearnerAttendanceSummary } from "@/modules/attendance/health-service";
 import { listLearnerCourses } from "@/modules/content/delivery-service";
+import { getTodaySchedule } from "@/modules/timetable/timetable-service";
 
 export const metadata: Metadata = { title: "Student Portal · My Learning" };
 
@@ -91,6 +93,10 @@ export default async function StudentDashboardPage() {
   const attendanceByOffering = new Map(
     attendanceCourses.map((c) => [c.offeringId, c.health]),
   );
+
+  const todaySchedule = canReadCourses
+    ? await getTodaySchedule(account, new Date(), db)
+    : { day: "MONDAY" as const, dayLabel: "Monday", slots: [], activeSlot: null, nextSlot: null };
 
   return (
     <div className="flex flex-col gap-8 pb-8">
@@ -287,8 +293,11 @@ export default async function StudentDashboardPage() {
           )}
         </div>
 
-        {/* Right Column: Attendance Health Card, Upcoming Live Sessions & Shortcuts (1 col) */}
+        {/* Right Column: Attendance Health Card, Today's Timetable, Upcoming Live Sessions & Shortcuts (1 col) */}
         <div className="flex flex-col gap-6">
+          {/* Today's Schedule Widget */}
+          <TodayScheduleWidget schedule={todaySchedule} />
+
           {/* Attendance Health Meter Card */}
           <AttendanceHealthCard
             health={attendanceOverall}
@@ -353,6 +362,14 @@ export default async function StudentDashboardPage() {
             <h2 className="text-ink text-base font-bold">Learning Hub</h2>
             <div className="grid grid-cols-2 gap-2.5">
               <Link
+                href="/student/timetable"
+                className="flex flex-col gap-1 rounded-xl bg-surface-muted/60 p-3 border border-border/60 hover:bg-brand-50 hover:border-brand-200 transition-all group"
+              >
+                <span className="text-xl">📅</span>
+                <span className="text-ink font-semibold text-xs group-hover:text-brand-700">Timetable</span>
+                <span className="text-ink-muted text-[11px]">Weekly class periods</span>
+              </Link>
+              <Link
                 href="/student/courses"
                 className="flex flex-col gap-1 rounded-xl bg-surface-muted/60 p-3 border border-border/60 hover:bg-brand-50 hover:border-brand-200 transition-all group"
               >
@@ -372,9 +389,9 @@ export default async function StudentDashboardPage() {
                 href="/calendar"
                 className="flex flex-col gap-1 rounded-xl bg-surface-muted/60 p-3 border border-border/60 hover:bg-brand-50 hover:border-brand-200 transition-all group"
               >
-                <span className="text-xl">📅</span>
+                <span className="text-xl">🗓️</span>
                 <span className="text-ink font-semibold text-xs group-hover:text-brand-700">Calendar</span>
-                <span className="text-ink-muted text-[11px]">Schedules & events</span>
+                <span className="text-ink-muted text-[11px]">Events & deadlines</span>
               </Link>
               <Link
                 href="/student/certificates"

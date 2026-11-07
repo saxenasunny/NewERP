@@ -153,6 +153,12 @@ export const NAVIGATION: Record<RoleKey, readonly NavSection[]> = {
           href: "/admin/offerings",
           phase: 4,
         },
+        {
+          key: "rooms",
+          label: "Classrooms and labs",
+          href: "/admin/rooms",
+          phase: 16,
+        },
       ],
     },
     {
@@ -196,6 +202,12 @@ export const NAVIGATION: Record<RoleKey, readonly NavSection[]> = {
           href: "/faculty/courses",
           phase: 5,
           description: "Modules, lessons, publication, and preview.",
+        },
+        {
+          key: "timetable",
+          label: "Teaching schedule",
+          href: "/faculty/timetable",
+          phase: 16,
         },
         { key: "announcements", label: "Announcements and discussions", phase: 9 },
       ],
@@ -250,6 +262,12 @@ export const NAVIGATION: Record<RoleKey, readonly NavSection[]> = {
           href: "/student/courses",
           phase: 5,
           description: "Published lessons you are enrolled in.",
+        },
+        {
+          key: "timetable",
+          label: "Class timetable",
+          href: "/student/timetable",
+          phase: 16,
         },
         { key: "calendar", label: "Calendar and to-do", href: "/calendar", phase: 9 },
       ],
