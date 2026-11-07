@@ -59,7 +59,7 @@ export function assertSafeStorageKey(key: string): void {
 }
 
 function localRoot(): string {
-  return path.resolve(process.env.STORAGE_LOCAL_ROOT ?? ".data/storage");
+  return path.resolve(/*turbopackIgnore: true*/ process.env.STORAGE_LOCAL_ROOT ?? ".data/storage");
 }
 
 class LocalStorageAdapter implements StorageAdapter {
@@ -266,7 +266,7 @@ export async function ensureLocalStorageRoot(): Promise<void> {
 
 export async function localFileExists(key: string): Promise<boolean> {
   try {
-    await stat(path.resolve(localRoot(), key));
+    await stat(path.resolve(/*turbopackIgnore: true*/ localRoot(), key));
     return true;
   } catch {
     return false;

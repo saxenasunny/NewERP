@@ -431,6 +431,52 @@ export async function deleteTimetableSlot(
   await db.timetableSlot.delete({ where: { id: slotId } });
 }
 
+/**
+ * All timetable slots across the institution for administrators.
+ */
+export async function listTenantTimetableSlots(
+  account: AccountContext,
+  db: DatabaseClient = getDb(),
+): Promise<TimetableSlotView[]> {
+  requirePermission(account, "academic_structure.manage");
+  const tenantId = tenantIdOf(account);
+
+  const slots = await db.timetableSlot.findMany({
+    where: { tenantId },
+    include: {
+      offering: { select: { course: { select: { code: true, title: true } } } },
+      instructor: { select: { id: true, name: true } },
+      room: true,
+    },
+    orderBy: [{ dayOfWeek: "asc" }, { periodNumber: "asc" }, { startTime: "asc" }],
+  });
+
+  return slots.map((s) => ({
+    id: s.id,
+    offeringId: s.courseOfferingId,
+    courseCode: s.offering.course.code,
+    courseTitle: s.offering.course.title,
+    instructorUserId: s.instructor.id,
+    instructorName: s.instructor.name,
+    room: s.room
+      ? {
+          id: s.room.id,
+          code: s.room.code,
+          building: s.room.building,
+          floor: s.room.floor,
+          capacity: s.room.capacity,
+          isLab: s.room.isLab,
+        }
+      : null,
+    dayOfWeek: s.dayOfWeek,
+    dayLabel: DAY_LABELS[s.dayOfWeek],
+    startTime: s.startTime,
+    endTime: s.endTime,
+    periodNumber: s.periodNumber,
+    slotType: s.slotType,
+  }));
+}
+
 export async function listOfferingTimetable(
   account: AccountContext,
   offeringId: string,

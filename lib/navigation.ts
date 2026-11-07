@@ -159,6 +159,12 @@ export const NAVIGATION: Record<RoleKey, readonly NavSection[]> = {
           href: "/admin/rooms",
           phase: 16,
         },
+        {
+          key: "timetable",
+          label: "Master timetable",
+          href: "/admin/timetable",
+          phase: 16,
+        },
       ],
     },
     {

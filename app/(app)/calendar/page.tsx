@@ -1,7 +1,9 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { redirect } from "next/navigation";
 
 import { Alert } from "@/components/ui/alert";
+import { Breadcrumbs } from "@/components/ui/breadcrumbs";
 import { Button, buttonClasses } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Input } from "@/components/ui/field";
@@ -60,11 +62,13 @@ function shiftMonth(month: Date, delta: number): string {
   return monthKey(new Date(month.getFullYear(), month.getMonth() + delta, 1));
 }
 
-function formatTime(date: Date): string {
+function formatTime(date: Date | null | undefined): string {
+  if (!date || !(date instanceof Date) || Number.isNaN(date.getTime())) return "—";
   return date.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" });
 }
 
-function formatDay(date: Date): string {
+function formatDay(date: Date | null | undefined): string {
+  if (!date || !(date instanceof Date) || Number.isNaN(date.getTime())) return "—";
   return date.toLocaleDateString("en-GB", {
     weekday: "long",
     day: "numeric",
@@ -113,6 +117,8 @@ export default async function CalendarPage({
   searchParams: Promise<{ month?: string; view?: string; from?: string; to?: string }>;
 }) {
   const account = await requireAccountContext();
+  if (!account.tenant) redirect(account.homePath);
+
   const { month: monthParam, view: viewParam, from, to } = await searchParams;
   const view = viewParam === "list" ? "list" : "month";
   const now = new Date();
@@ -136,6 +142,12 @@ export default async function CalendarPage({
   } catch (caught) {
     return (
       <div className="flex flex-col gap-6">
+        <Breadcrumbs
+          items={[
+            { label: "Home", href: account.homePath },
+            { label: "Calendar", href: "/calendar" },
+          ]}
+        />
         <PageHeader title="Calendar" />
         <Alert tone="warning" title="Not available">
           {caught instanceof AppError
@@ -158,6 +170,12 @@ export default async function CalendarPage({
 
   return (
     <div className="flex flex-col gap-6">
+      <Breadcrumbs
+        items={[
+          { label: "Home", href: account.homePath },
+          { label: "Calendar", href: "/calendar" },
+        ]}
+      />
       <PageHeader
         title="Calendar"
         description={
