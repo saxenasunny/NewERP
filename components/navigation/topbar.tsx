@@ -71,13 +71,13 @@ export function Topbar({
           >
             <span
               aria-hidden="true"
-              className="bg-gradient-to-tr from-brand-600 via-indigo-600 to-violet-600 text-white shadow-xs flex size-9 shrink-0 items-center justify-center rounded-xl text-xs font-bold tracking-wider"
+              className="bg-gradient-to-tr from-brand-900 via-brand-700 to-brand-500 text-white shadow-xs flex size-9 shrink-0 items-center justify-center rounded-xl text-xs font-bold tracking-wider ring-1 ring-brand-200/50"
             >
               {initials(userName)}
             </span>
             <span className="hidden min-w-0 sm:block">
               <span className="text-ink block truncate text-sm font-semibold">{userName}</span>
-              <span className="text-brand-600 block truncate text-xs font-medium">{ROLES[role].label}</span>
+              <span className="text-brand-700 block truncate text-xs font-semibold">{ROLES[role].label}</span>
             </span>
           </Link>
           <SignOutButton className="hidden sm:inline-flex" />

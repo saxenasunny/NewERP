@@ -29,8 +29,8 @@ export function AuthCard({
           </span>
         </div>
 
-        <div className="relative overflow-hidden rounded-3xl border border-border bg-surface/95 backdrop-blur-sm shadow-xl p-6 sm:p-8">
-          <div className="absolute inset-x-0 top-0 h-1.5 bg-gradient-to-r from-brand-600 via-indigo-600 to-violet-600" />
+        <div className="relative overflow-hidden rounded-3xl border border-border bg-surface/95 backdrop-blur-sm shadow-xl shadow-brand-900/5 p-6 sm:p-8">
+          <div className="absolute inset-x-0 top-0 h-1.5 bg-gradient-to-r from-brand-900 via-brand-700 to-brand-400" />
           <h1 className="text-ink text-2xl font-bold tracking-tight">{title}</h1>
           <p className="text-ink-muted mt-2 text-sm leading-relaxed">{description}</p>
           <div className="mt-6">{children}</div>

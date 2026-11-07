@@ -101,9 +101,9 @@ export default async function StudentDashboardPage() {
   return (
     <div className="flex flex-col gap-8 pb-8">
       {/* Motivational Student Hero Banner */}
-      <section className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-brand-600 via-indigo-600 to-violet-800 p-6 sm:p-10 text-white shadow-xl shadow-brand-500/15">
+      <section className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-brand-900 via-brand-700 to-brand-500 p-6 sm:p-10 text-white shadow-xl shadow-brand-900/20">
         <div className="absolute -right-12 -top-12 size-64 rounded-full bg-white/10 blur-2xl pointer-events-none" />
-        <div className="absolute right-1/4 -bottom-16 size-48 rounded-full bg-indigo-400/20 blur-xl pointer-events-none" />
+        <div className="absolute right-1/4 -bottom-16 size-48 rounded-full bg-brand-300/25 blur-xl pointer-events-none" />
 
         <div className="relative z-10 flex flex-col gap-6 md:flex-row md:items-center md:justify-between">
           <div className="max-w-xl">
@@ -124,7 +124,7 @@ export default async function StudentDashboardPage() {
                 <Button
                   variant="primary"
                   size="md"
-                  className="bg-white text-brand-800 hover:bg-brand-50 shadow-lg shadow-black/10 font-bold border-none"
+                  className="bg-white text-brand-900 hover:bg-brand-50 shadow-lg shadow-black/10 font-bold border-none"
                 >
                   Resume {courses[0].courseCode} →
                 </Button>
@@ -220,9 +220,9 @@ export default async function StudentDashboardPage() {
 
                 // Color accent variants based on index
                 const accents = [
-                  { stripe: "from-brand-500 to-indigo-600", badge: "info" as const },
+                  { stripe: "from-brand-700 to-brand-500", badge: "brand" as const },
                   { stripe: "from-emerald-500 to-teal-600", badge: "success" as const },
-                  { stripe: "from-violet-500 to-purple-600", badge: "brand" as const },
+                  { stripe: "from-brand-500 to-brand-300", badge: "info" as const },
                   { stripe: "from-amber-500 to-orange-600", badge: "warning" as const },
                 ];
                 const accent = accents[idx % accents.length] ?? accents[0]!;

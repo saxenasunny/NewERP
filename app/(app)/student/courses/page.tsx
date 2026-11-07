@@ -79,9 +79,9 @@ export default async function StudentCoursesPage() {
             const courseHealth = attendanceByOffering.get(course.offeringId);
 
             const accents = [
-              { stripe: "from-brand-500 to-indigo-600", tone: "info" as const },
+              { stripe: "from-brand-700 to-brand-500", tone: "brand" as const },
               { stripe: "from-emerald-500 to-teal-600", tone: "success" as const },
-              { stripe: "from-violet-500 to-purple-600", tone: "brand" as const },
+              { stripe: "from-brand-500 to-brand-300", tone: "info" as const },
               { stripe: "from-amber-500 to-orange-600", tone: "warning" as const },
             ];
             const accent = accents[idx % accents.length] ?? accents[0]!;

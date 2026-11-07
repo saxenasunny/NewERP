@@ -1,45 +1,56 @@
 @import "tailwindcss";
 
 /*
- * Design tokens: Student-centric, vibrant, modern, high-contrast palette.
+ * Design tokens: Oceanic Nordic theme directly derived from the reference palette.
+ * Reference Palette:
+ *  - #001D39 (Deepest Midnight Navy)
+ *  - #0A4174 (Rich Marine / Classic Sapphire)
+ *  - #49769F (Steel Cerulean / Slate Blue)
+ *  - #4E8EA2 (Ocean Teal / Cyan Slate)
+ *  - #6EA2B3 (Muted Sky Teal / Seafoam Slate)
+ *  - #7BBDE8 (Vibrant Ice Sky / Glacial Azure)
+ *  - #BDD8E9 (Soft Frost Morning / Tinted Ice)
  */
 @theme {
   --font-sans: var(--font-geist-sans), ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
   --font-mono: var(--font-geist-mono), ui-monospace, "SFMono-Regular", Menlo, Monaco, Consolas, monospace;
 
-  /* Luminous, clean backgrounds */
-  --color-canvas: #f8fafc;
+  /* Luminous, cool morning frost backgrounds */
+  --color-canvas: #f4f8fb;
   --color-surface: #ffffff;
-  --color-surface-muted: #f1f5f9;
-  --color-border: #e2e8f0;
-  --color-border-strong: #cbd5e1;
-  --color-ink: #0f172a;
-  --color-ink-muted: #64748b;
+  --color-surface-muted: #eaf2f8;
+  --color-border: #d2e4f0;
+  --color-border-strong: #9ec5df;
 
-  /* Energetic, modern Indigo & Violet primary palette */
-  --color-brand-50: #eef2ff;
-  --color-brand-100: #e0e7ff;
-  --color-brand-200: #c7d2fe;
-  --color-brand-300: #a5b4fc;
-  --color-brand-400: #818cf8;
-  --color-brand-500: #6366f1;
-  --color-brand-600: #4f46e5;
-  --color-brand-700: #4338ca;
-  --color-brand-800: #3730a3;
-  --color-brand-900: #312e81;
+  /* Ink typography anchored in deepest midnight navy (#001D39) */
+  --color-ink: #001d39;
+  --color-ink-muted: #49769f;
 
-  /* Vibrant student-friendly status tones */
-  --color-success: #059669;
-  --color-success-subtle: #ecfdf5;
+  /* Oceanic Palette Scale */
+  --color-brand-50: #f0f6fa;
+  --color-brand-100: #bdd8e9;
+  --color-brand-200: #9acde8;
+  --color-brand-300: #7bbde8;
+  --color-brand-400: #6ea2b3;
+  --color-brand-500: #4e8ea2;
+  --color-brand-600: #49769f;
+  --color-brand-700: #0a4174;
+  --color-brand-800: #073056;
+  --color-brand-900: #001d39;
+  --color-brand-950: #001122;
+
+  /* Harmonized student-friendly status tones */
+  --color-success: #0d9488;
+  --color-success-subtle: #f0fdfa;
   --color-warning: #d97706;
   --color-warning-subtle: #fffbeb;
-  --color-danger: #dc2626;
-  --color-danger-subtle: #fef2f2;
+  --color-danger: #e11d48;
+  --color-danger-subtle: #fff1f2;
   --color-info: #0284c7;
   --color-info-subtle: #f0f9ff;
 
   --radius-card: 1rem;
-  --shadow-card: 0 4px 6px -1px rgb(15 23 42 / 0.05), 0 2px 4px -2px rgb(15 23 42 / 0.05);
+  --shadow-card: 0 4px 6px -1px rgb(0 29 57 / 0.05), 0 2px 4px -2px rgb(0 29 57 / 0.04);
 }
 
 @layer base {
@@ -49,13 +60,14 @@
 
   body {
     @apply bg-canvas text-ink font-sans antialiased selection:bg-brand-100 selection:text-brand-900;
-    background-image: radial-gradient(at 100% 0%, rgb(238 242 255 / 0.4) 0px, transparent 50%),
-                      radial-gradient(at 0% 100%, rgb(240 249 255 / 0.4) 0px, transparent 50%);
+    background-image: radial-gradient(at 100% 0%, rgb(189 216 233 / 0.35) 0px, transparent 55%),
+                      radial-gradient(at 0% 100%, rgb(123 189 232 / 0.25) 0px, transparent 50%),
+                      radial-gradient(at 50% 50%, rgb(244 248 251 / 1) 0px, transparent 100%);
     background-attachment: fixed;
   }
 
   :focus-visible {
-    outline: 2px solid var(--color-brand-600);
+    outline: 2px solid var(--color-brand-700);
     outline-offset: 2px;
   }
 
@@ -65,7 +77,7 @@
   }
 
   dialog::backdrop {
-    background-color: rgb(15 23 42 / 0.6);
+    background-color: rgb(0 29 57 / 0.6);
     backdrop-filter: blur(4px);
   }
 }
