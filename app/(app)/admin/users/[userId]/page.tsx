@@ -48,11 +48,18 @@ export default async function AdminUserDetailPage({
   const { notice, error } = await searchParams;
   const returnTo = `/admin/users/${userId}`;
 
-  if (!account.permissions.has("users.read")) {
+  const canManageUser =
+    account.permissions.has("users.update") ||
+    account.permissions.has("roles.assign") ||
+    account.permissions.has("users.create") ||
+    account.permissions.has("users.deactivate") ||
+    account.navRole === "institution_admin";
+
+  if (!canManageUser) {
     return (
       <div className="flex flex-col gap-6">
         <PageHeader eyebrow="People" title="Person" />
-        <PermissionDenied message="Your role cannot view the institution directory. Ask an institution administrator if you need access." />
+        <PermissionDenied message="Your role cannot view or manage institution members. Ask an institution administrator if you need access." />
       </div>
     );
   }

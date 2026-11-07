@@ -89,7 +89,15 @@ export default async function AdminUsersPage({
   const { q, notice, error } = await searchParams;
   const returnTo = `/admin/users${q ? `?q=${encodeURIComponent(q)}` : ""}`;
 
-  if (!account.permissions.has("users.read")) {
+  const canManageDirectory =
+    account.permissions.has("users.create") ||
+    account.permissions.has("roles.assign") ||
+    account.permissions.has("users.import") ||
+    account.permissions.has("users.update") ||
+    account.permissions.has("users.deactivate") ||
+    account.navRole === "institution_admin";
+
+  if (!canManageDirectory) {
     return (
       <div className="flex flex-col gap-6">
         <PageHeader
@@ -97,7 +105,7 @@ export default async function AdminUsersPage({
           title="People"
           description="The institution directory is restricted to administrators."
         />
-        <PermissionDenied message="Your role cannot view the institution directory. Ask an institution administrator if you need access." />
+        <PermissionDenied message="Your role cannot view or manage the institution directory. Ask an institution administrator if you need access." />
       </div>
     );
   }

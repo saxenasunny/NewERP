@@ -30,11 +30,16 @@ export default async function CoursesPage({
   const account = await requireAccountContext();
   const { edit, notice, error } = await searchParams;
 
-  if (!account.permissions.has("courses.read")) {
+  const canManageCatalogue =
+    account.permissions.has("courses.create") ||
+    account.permissions.has("courses.update") ||
+    account.permissions.has("academic_structure.manage");
+
+  if (!canManageCatalogue) {
     return (
       <div className="flex flex-col gap-6">
         <PageHeader title="Course catalogue" />
-        <PermissionDenied message="Your role cannot view the course catalogue." />
+        <PermissionDenied message="Your role cannot view or manage the course catalogue. Ask an institution administrator for access." />
       </div>
     );
   }

@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 
+import { PermissionDenied } from "@/components/permission-denied";
 import { Alert } from "@/components/ui/alert";
 import { Breadcrumbs } from "@/components/ui/breadcrumbs";
 import { Button } from "@/components/ui/button";
@@ -26,6 +27,16 @@ export default async function AdminRoomsPage({
 
   const { notice, error } = await searchParams;
   const canManage = account.permissions.has("academic_structure.manage");
+
+  if (!canManage) {
+    return (
+      <div className="flex flex-col gap-6">
+        <PageHeader title="Classrooms & Laboratories" />
+        <PermissionDenied message="Your role cannot manage campus rooms and labs. Ask an institution administrator for access." />
+      </div>
+    );
+  }
+
   const rooms = await listRooms(account);
 
   return (

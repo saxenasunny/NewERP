@@ -13,6 +13,15 @@ export default async function InstitutionDashboardPage() {
   const account = await requireAccountContext();
   if (!account.tenant) redirect(account.homePath);
 
+  if (
+    account.navRole !== "institution_admin" &&
+    !account.isPlatformAdmin &&
+    !account.roleKeys.includes("institution_admin") &&
+    !account.roleKeys.includes("academic_coordinator")
+  ) {
+    redirect(account.homePath);
+  }
+
   const canReadUsers = account.permissions.has("users.read");
   const db = getDb();
   const tenantId = account.tenant.tenantId;

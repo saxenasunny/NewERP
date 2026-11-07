@@ -44,11 +44,16 @@ export default async function OfferingsPage({
   const account = await requireAccountContext();
   const { edit, course, term, notice, error } = await searchParams;
 
-  if (!account.permissions.has("courses.read")) {
+  const canManageOfferings =
+    account.permissions.has("enrolments.manage") ||
+    account.permissions.has("courses.create") ||
+    account.permissions.has("academic_structure.manage");
+
+  if (!canManageOfferings) {
     return (
       <div className="flex flex-col gap-6">
         <PageHeader title="Course offerings" />
-        <PermissionDenied message="Your role cannot view course offerings." />
+        <PermissionDenied message="Your role cannot view or manage course offerings. Ask an institution administrator for access." />
       </div>
     );
   }

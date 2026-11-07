@@ -12,6 +12,16 @@ export default async function FacultyDashboardPage() {
   const account = await requireAccountContext();
   if (!account.tenant) redirect(account.homePath);
 
+  if (
+    account.navRole !== "faculty" &&
+    account.navRole !== "institution_admin" &&
+    !account.isPlatformAdmin &&
+    !account.roleKeys.includes("faculty") &&
+    !account.roleKeys.includes("teaching_assistant")
+  ) {
+    redirect(account.homePath);
+  }
+
   const canAuthor =
     account.permissions.has("content.create") || account.permissions.has("courses.update");
   const courses = canAuthor ? await listManagedCourses(account) : [];

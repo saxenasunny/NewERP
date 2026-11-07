@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 
+import { PermissionDenied } from "@/components/permission-denied";
 import { Breadcrumbs } from "@/components/ui/breadcrumbs";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -33,6 +34,15 @@ export default async function AdminTimetablePage({
 }) {
   const account = await requireAccountContext();
   if (!account.tenant) redirect(account.homePath);
+
+  if (!account.permissions.has("academic_structure.manage")) {
+    return (
+      <div className="flex flex-col gap-6">
+        <PageHeader title="Institution Master Timetable" />
+        <PermissionDenied message="Your role cannot view or manage the master institution timetable. Ask an institution administrator for access." />
+      </div>
+    );
+  }
 
   const { day: selectedDayParam } = await searchParams;
   const [allSlots, rooms] = await Promise.all([
