@@ -33,7 +33,7 @@ export function Topbar({
   showDevMail: boolean;
 }) {
   return (
-    <header className="border-border bg-surface/95 sticky top-0 z-20 border-b backdrop-blur">
+    <header className="border-b border-border/80 bg-white/75 sticky top-0 z-20 backdrop-blur-md shadow-xs">
       <div className="flex h-16 items-center gap-3 px-4 sm:px-6">
         <MobileNav
           role={role}

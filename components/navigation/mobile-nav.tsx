@@ -36,7 +36,7 @@ export function MobileNav({
         type="button"
         onClick={() => setOpen(true)}
         aria-haspopup="dialog"
-        className="border-border-strong text-ink hover:bg-surface-muted flex size-10 items-center justify-center rounded-lg border lg:hidden"
+        className="border-border-strong text-ink hover:bg-brand-50 flex size-10 items-center justify-center rounded-xl border bg-white/80 shadow-xs lg:hidden"
       >
         <svg aria-hidden="true" viewBox="0 0 20 20" fill="none" className="size-5">
           <path
@@ -57,21 +57,21 @@ export function MobileNav({
           setOpen(false);
         }}
         onClose={() => setOpen(false)}
-        className="border-border bg-surface text-ink m-0 h-dvh max-h-dvh w-[min(20rem,85vw)] max-w-none border-0 border-r p-0"
+        className="border-r border-[#0A4174]/40 bg-[#001D39] text-white m-0 h-dvh max-h-dvh w-[min(20rem,85vw)] max-w-none border-0 p-0 shadow-2xl"
       >
         <div className="flex h-full flex-col">
-          <div className="border-border flex items-center justify-between gap-2 border-b px-4 py-3">
+          <div className="border-b border-[#0A4174]/40 flex items-center justify-between gap-2 px-4 py-3 bg-[#001428]/60">
             <div className="flex min-w-0 items-center gap-3">
               <BrandMark />
               <div className="min-w-0">
-                <p className="text-ink truncate text-sm font-semibold">LMS Platform</p>
-                <p className="text-ink-muted truncate text-xs">{tenantName}</p>
+                <p className="text-white truncate text-sm font-bold tracking-tight">NewERP System</p>
+                <p className="text-[#BDD8E9]/75 truncate text-xs">{tenantName}</p>
               </div>
             </div>
             <button
               type="button"
               onClick={() => setOpen(false)}
-              className="text-ink-muted hover:bg-surface-muted hover:text-ink flex size-9 items-center justify-center rounded-lg"
+              className="text-[#BDD8E9]/80 hover:bg-[#0A4174]/50 hover:text-white flex size-9 items-center justify-center rounded-lg transition-colors"
             >
               <svg aria-hidden="true" viewBox="0 0 20 20" fill="none" className="size-5">
                 <path
@@ -89,14 +89,14 @@ export function MobileNav({
             <SidebarNav role={role} onNavigate={() => setOpen(false)} />
           </div>
 
-          <div className="border-border border-t px-2 py-3">
-            <p className="text-ink-muted px-3 pb-2 text-xs font-semibold tracking-wide uppercase">
+          <div className="border-t border-[#0A4174]/40 px-2 py-3 bg-[#001428]/40">
+            <p className="text-[#7BBDE8] px-3 pb-2 text-[11px] font-bold tracking-wider uppercase">
               {ROLES[role].label}
             </p>
             <Link
               href="/account"
               onClick={() => setOpen(false)}
-              className="text-ink-muted hover:bg-surface-muted hover:text-ink flex rounded-lg px-3 py-2 text-sm"
+              className="text-[#BDD8E9]/80 hover:bg-[#0A4174]/50 hover:text-white flex rounded-lg px-3 py-2 text-sm font-medium transition-colors"
             >
               My account
             </Link>
@@ -104,7 +104,7 @@ export function MobileNav({
               <Link
                 href="/design"
                 onClick={() => setOpen(false)}
-                className="text-ink-muted hover:bg-surface-muted hover:text-ink flex rounded-lg px-3 py-2 text-sm"
+                className="text-[#BDD8E9]/80 hover:bg-[#0A4174]/50 hover:text-white flex rounded-lg px-3 py-2 text-sm font-medium transition-colors"
               >
                 Design system
               </Link>
@@ -113,13 +113,13 @@ export function MobileNav({
               <Link
                 href="/dev/mail"
                 onClick={() => setOpen(false)}
-                className="text-ink-muted hover:bg-surface-muted hover:text-ink flex rounded-lg px-3 py-2 text-sm"
+                className="text-[#BDD8E9]/80 hover:bg-[#0A4174]/50 hover:text-white flex rounded-lg px-3 py-2 text-sm font-medium transition-colors"
               >
                 Development outbox
               </Link>
             ) : null}
             <div className="pt-1">
-              <SignOutButton className="w-full justify-start" />
+              <SignOutButton className="w-full justify-start text-[#BDD8E9]/80 hover:text-rose-300 hover:bg-rose-950/40" />
             </div>
           </div>
         </div>

@@ -57,8 +57,8 @@ export function AppShell({
         >
           {children}
         </main>
-        <footer className="text-ink-muted mx-auto w-full max-w-6xl px-4 py-6 text-xs sm:px-6 lg:px-8">
-          {tenantName} · fictional demo data · built in verified phases.
+        <footer className="text-brand-900/60 mx-auto w-full max-w-6xl px-4 py-6 text-xs sm:px-6 lg:px-8 font-medium">
+          {tenantName} · NewERP Academic System · All modules active.
         </footer>
       </div>
     </div>
