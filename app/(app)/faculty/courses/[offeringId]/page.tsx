@@ -111,84 +111,162 @@ export default async function CourseEditorPage({
           { label: `${access.courseCode} · ${access.termName}` },
         ]}
       />
-      <PageHeader
-        eyebrow={`${access.academicYearName} · ${access.termName}${access.sectionName ? ` · Section ${access.sectionName}` : ""}`}
-        title={`${access.courseCode} · ${access.courseTitle}`}
-        description="Modules and lessons in the order learners see them. Publishing the course releases everything marked published."
-        actions={
-          <div className="flex flex-wrap items-center gap-3">
-            <StatusBadge tone={access.status === "PUBLISHED" ? "success" : "info"}>
-              course {access.status.toLowerCase()}
-            </StatusBadge>
+
+      {/* Course Identity Hero Banner */}
+      <div className="relative overflow-hidden rounded-3xl border border-border bg-surface/90 backdrop-blur-md p-6 sm:p-8 shadow-sm">
+        <div className="absolute inset-x-0 top-0 h-1.5 bg-gradient-to-r from-brand-900 via-brand-700 to-brand-400" />
+
+        <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-6">
+          {/* Left: Code, Academic Details, Title, Description */}
+          <div className="flex flex-col gap-3 min-w-0 max-w-3xl">
+            {/* Subject Code + Academic Metadata + Status Pill */}
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="inline-flex items-center px-3 py-1 rounded-lg bg-brand-100 text-brand-900 font-mono text-xs font-bold border border-brand-300/80 shadow-xs">
+                {access.courseCode}
+              </span>
+              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg bg-surface-muted text-ink-muted text-xs font-medium border border-border">
+                📅 {access.academicYearName} · {access.termName}
+              </span>
+              {access.sectionName ? (
+                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg bg-surface-muted text-ink-muted text-xs font-medium border border-border">
+                  👥 Section {access.sectionName}
+                </span>
+              ) : null}
+              <StatusBadge tone={access.status === "PUBLISHED" ? "success" : "info"}>
+                {access.status === "PUBLISHED" ? "Course Published" : "Course Draft"}
+              </StatusBadge>
+            </div>
+
+            {/* Subject Title */}
+            <h1 className="text-2xl sm:text-3xl lg:text-4xl font-extrabold text-ink tracking-tight leading-snug">
+              {access.courseTitle}
+            </h1>
+
+            {/* Description */}
+            <p className="text-ink-muted text-sm sm:text-base leading-relaxed">
+              Modules and lessons in the order learners see them. Publishing the course releases everything marked published.
+            </p>
+          </div>
+
+          {/* Right: Quick Action Buttons */}
+          <div className="flex flex-wrap lg:flex-col items-stretch sm:items-center lg:items-end gap-2.5 shrink-0">
+            <Link href={`/faculty/courses/${access.offeringId}/preview`}>
+              <Button variant="secondary" size="md" className="w-full sm:w-auto shadow-xs">
+                👁️ Preview as Learner
+              </Button>
+            </Link>
+            <form action={access.status === "PUBLISHED" ? unpublishCourseAction : publishCourseAction}>
+              <input type="hidden" name="offeringId" value={access.offeringId} />
+              <input type="hidden" name="returnTo" value={returnTo} />
+              <Button
+                type="submit"
+                variant={access.status === "PUBLISHED" ? "ghost" : "primary"}
+                size="md"
+                className="w-full sm:w-auto font-medium"
+              >
+                {access.status === "PUBLISHED" ? "Unpublish Course" : "🚀 Publish Course"}
+              </Button>
+            </form>
+          </div>
+        </div>
+
+        {/* Sub-Navigation Tabs Bar */}
+        <div className="mt-8 pt-4 border-t border-border/80">
+          <div className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-none">
+            <Link
+              href={`/faculty/courses/${access.offeringId}`}
+              className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-semibold rounded-xl bg-gradient-to-r from-brand-900 via-brand-700 to-brand-600 text-white shadow-sm ring-1 ring-brand-300/40 shrink-0"
+            >
+              <span>📚</span>
+              <span>Content & Modules</span>
+            </Link>
             <Link
               href={`/faculty/courses/${access.offeringId}/assignments`}
-              className="text-brand-800 text-sm font-medium hover:underline"
+              className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-medium rounded-xl text-ink-muted hover:text-ink hover:bg-surface-muted hover:border-brand-200 border border-transparent transition-all shrink-0"
             >
-              Assignments
+              <span>📝</span>
+              <span>Assignments</span>
+            </Link>
+            <Link
+              href={`/faculty/courses/${access.offeringId}/quizzes`}
+              className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-medium rounded-xl text-ink-muted hover:text-ink hover:bg-surface-muted hover:border-brand-200 border border-transparent transition-all shrink-0"
+            >
+              <span>❓</span>
+              <span>Quizzes</span>
+            </Link>
+            <Link
+              href={`/faculty/courses/${access.offeringId}/question-banks`}
+              className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-medium rounded-xl text-ink-muted hover:text-ink hover:bg-surface-muted hover:border-brand-200 border border-transparent transition-all shrink-0"
+            >
+              <span>🗄️</span>
+              <span>Question Banks</span>
             </Link>
             <Link
               href={`/faculty/courses/${access.offeringId}/sessions`}
-              className="text-brand-800 text-sm font-medium hover:underline"
+              className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-medium rounded-xl text-ink-muted hover:text-ink hover:bg-surface-muted hover:border-brand-200 border border-transparent transition-all shrink-0"
             >
-              Live sessions
+              <span>🎥</span>
+              <span>Live Sessions</span>
             </Link>
             <Link
               href={`/faculty/courses/${access.offeringId}/timetable`}
-              className="text-brand-800 text-sm font-medium hover:underline"
+              className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-medium rounded-xl text-ink-muted hover:text-ink hover:bg-surface-muted hover:border-brand-200 border border-transparent transition-all shrink-0"
             >
-              Timetable
+              <span>🗓️</span>
+              <span>Timetable</span>
             </Link>
             <Link
               href={`/faculty/courses/${access.offeringId}/attendance`}
-              className="text-brand-800 text-sm font-medium hover:underline"
+              className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-medium rounded-xl text-ink-muted hover:text-ink hover:bg-surface-muted hover:border-brand-200 border border-transparent transition-all shrink-0"
             >
-              Attendance report
-            </Link>
-            <Link
-              href={`/faculty/courses/${access.offeringId}/announcements`}
-              className="text-brand-800 text-sm font-medium hover:underline"
-            >
-              Announcements
-            </Link>
-            <Link
-              href={`/faculty/courses/${access.offeringId}/discussions`}
-              className="text-brand-800 text-sm font-medium hover:underline"
-            >
-              Discussions
-            </Link>
-            <Link
-              href={`/faculty/courses/${access.offeringId}/messages`}
-              className="text-brand-800 text-sm font-medium hover:underline"
-            >
-              Messages
-            </Link>
-            <Link
-              href={`/faculty/courses/${access.offeringId}/outcomes`}
-              className="text-brand-800 text-sm font-medium hover:underline"
-            >
-              Outcomes
-            </Link>
-            <Link
-              href={`/faculty/courses/${access.offeringId}/certificates`}
-              className="text-brand-800 text-sm font-medium hover:underline"
-            >
-              Certificates
+              <span>📊</span>
+              <span>Attendance</span>
             </Link>
             <Link
               href={`/faculty/courses/${access.offeringId}/gradebook`}
-              className="text-brand-800 text-sm font-medium hover:underline"
+              className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-medium rounded-xl text-ink-muted hover:text-ink hover:bg-surface-muted hover:border-brand-200 border border-transparent transition-all shrink-0"
             >
-              Gradebook
+              <span>📈</span>
+              <span>Gradebook</span>
             </Link>
             <Link
-              href={`/faculty/courses/${access.offeringId}/preview`}
-              className="text-brand-800 text-sm font-medium hover:underline"
+              href={`/faculty/courses/${access.offeringId}/announcements`}
+              className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-medium rounded-xl text-ink-muted hover:text-ink hover:bg-surface-muted hover:border-brand-200 border border-transparent transition-all shrink-0"
             >
-              Preview as learner
+              <span>📢</span>
+              <span>Announcements</span>
+            </Link>
+            <Link
+              href={`/faculty/courses/${access.offeringId}/discussions`}
+              className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-medium rounded-xl text-ink-muted hover:text-ink hover:bg-surface-muted hover:border-brand-200 border border-transparent transition-all shrink-0"
+            >
+              <span>💬</span>
+              <span>Discussions</span>
+            </Link>
+            <Link
+              href={`/faculty/courses/${access.offeringId}/messages`}
+              className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-medium rounded-xl text-ink-muted hover:text-ink hover:bg-surface-muted hover:border-brand-200 border border-transparent transition-all shrink-0"
+            >
+              <span>✉️</span>
+              <span>Messages</span>
+            </Link>
+            <Link
+              href={`/faculty/courses/${access.offeringId}/outcomes`}
+              className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-medium rounded-xl text-ink-muted hover:text-ink hover:bg-surface-muted hover:border-brand-200 border border-transparent transition-all shrink-0"
+            >
+              <span>🎯</span>
+              <span>Outcomes</span>
+            </Link>
+            <Link
+              href={`/faculty/courses/${access.offeringId}/certificates`}
+              className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-medium rounded-xl text-ink-muted hover:text-ink hover:bg-surface-muted hover:border-brand-200 border border-transparent transition-all shrink-0"
+            >
+              <span>🏆</span>
+              <span>Certificates</span>
             </Link>
           </div>
-        }
-      />
+        </div>
+      </div>
 
       {notice ? (
         <Alert tone="success" title="Saved">
