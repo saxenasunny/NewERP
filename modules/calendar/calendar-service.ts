@@ -83,8 +83,11 @@ export function parseCalendarWindow(input: {
   return { from, to };
 }
 
-function startOfDay(date: Date): Date {
-  return new Date(date.getFullYear(), date.getMonth(), date.getDate());
+function startOfDay(date: Date | string | null | undefined): Date {
+  if (!date) return new Date();
+  const d = date instanceof Date ? date : new Date(date);
+  if (Number.isNaN(d.getTime())) return new Date();
+  return new Date(d.getFullYear(), d.getMonth(), d.getDate());
 }
 
 /** True when the actor teaches or administers at least one offering. */
@@ -263,7 +266,11 @@ export async function getCalendar(
     });
   }
 
-  events.sort((left, right) => left.startsAt.getTime() - right.startsAt.getTime());
+  events.sort((left, right) => {
+    const l = (left.startsAt instanceof Date ? left.startsAt : new Date(left.startsAt)).getTime();
+    const r = (right.startsAt instanceof Date ? right.startsAt : new Date(right.startsAt)).getTime();
+    return l - r;
+  });
 
   return { scope, from: window.from, to: window.to, events };
 }
@@ -290,7 +297,10 @@ export function groupEventsByDay(events: CalendarEvent[]): Array<{
 }
 
 /** Stable `YYYY-MM-DD` key for a local day, used for grouping and links. */
-export function dayKey(date: Date): string {
+export function dayKey(date: Date | string | null | undefined): string {
+  if (!date) return "1970-01-01";
+  const d = date instanceof Date ? date : new Date(date);
+  if (Number.isNaN(d.getTime())) return "1970-01-01";
   const pad = (value: number) => String(value).padStart(2, "0");
-  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
 }
